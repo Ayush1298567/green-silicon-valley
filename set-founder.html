@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Founder - Quick Setup</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2BAE66;
+            margin-top: 0;
+        }
+        button {
+            background: #2BAE66;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #249956;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+        .steps {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Set Founder Access</h1>
+        <p>Click the button below to set <strong>ayushg.2024@gmail.com</strong> as a founder.</p>
+        
+        <button id="setFounderBtn" onclick="setFounder()">Set as Founder</button>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="steps">
+            <strong>📋 Steps:</strong>
+            <ol>
+                <li>Make sure you've signed in at least once at <code>http://localhost:3000/login</code></li>
+                <li>Click the "Set as Founder" button above</li>
+                <li>Wait for success message</li>
+                <li>Log out and log back in</li>
+                <li>You'll see the Founder Dashboard! 🎉</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        async function setFounder() {
+            const btn = document.getElementById('setFounderBtn');
+            const status = document.getElementById('status');
+            
+            btn.disabled = true;
+            btn.textContent = 'Setting founder...';
+            status.className = 'status info';
+            status.textContent = '⏳ Processing...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/set-founder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'ayushg.2024@gmail.com'
+                    }),
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    status.className = 'status success';
+                    status.innerHTML = `
+                        <strong>✅ Success!</strong><br>
+                        ${data.message}<br>
+                        <br>
+                        <strong>Next steps:</strong><br>
+                        1. Go to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a><br>
+                        2. Click "Logout" (if logged in)<br>
+                        3. Click "Login" and sign in again<br>
+                        4. You'll see the Founder Dashboard!
+                    `;
+                    btn.textContent = '✅ Done! Now log out and back in';
+                } else {
+                    status.className = 'status error';
+                    status.innerHTML = `
+                        <strong>❌ Error:</strong> ${data.error}<br>
+                        <br>
+                        ${data.error.includes('not found') ? 
+                            '<strong>Solution:</strong> Sign in first at <a href="http://localhost:3000/login" target="_blank">http://localhost:3000/login</a>, then try again.' :
+                            '<strong>Try:</strong> Make sure you\'re logged in, then refresh this page and try again.'
+                        }
+                    `;
+                    btn.disabled = false;
+                    btn.textContent = 'Try Again';
+                }
+            } catch (error) {
+                status.className = 'status error';
+                status.innerHTML = `
+                    <strong>❌ Connection Error:</strong><br>
+                    ${error.message}<br>
+                    <br>
+                    <strong>Make sure:</strong><br>
+                    1. The dev server is running at http://localhost:3000<br>
+                    2. You're logged in to the website<br>
+                    3. Try refreshing this page
+                `;
+                btn.disabled = false;
+                btn.textContent = 'Try Again';
+            }
+        }
+    </script>
+</body>
+</html>
+
