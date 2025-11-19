@@ -4,7 +4,8 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { getUserRoleServer } from "@/lib/auth/guards";
 import { aiService } from "@/lib/aiService";
 
-export async function GET(req: Request, { params }: { params: { groupId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ groupId: string }> }) {
+  const resolvedParams = await params;
   const supabase = createRouteHandlerClient({ cookies });
   const role = await getUserRoleServer(supabase as any);
   if (role !== "founder" && role !== "intern") {
@@ -15,18 +16,18 @@ export async function GET(req: Request, { params }: { params: { groupId: string 
       .eq("user_id", (await supabase.auth.getSession()).data.session?.user.id)
       .single();
 
-    if (!teamMember || teamMember.volunteer_team_id !== params.groupId) {
+    if (!teamMember || teamMember.volunteer_team_id !== resolvedParams.groupId) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
   }
 
   try {
-    const recommendations = await aiService.createGroupRecommendations(params.groupId);
+    const recommendations = await aiService.createGroupRecommendations(resolvedParams.groupId);
 
     // Store recommendations in database for tracking
     for (const rec of recommendations) {
       await supabase.from("ai_recommendations").upsert({
-        group_id: params.groupId,
+        group_id: resolvedParams.groupId,
         recommendation_type: rec.type,
         title: rec.title,
         description: rec.description,
@@ -48,7 +49,8 @@ export async function GET(req: Request, { params }: { params: { groupId: string 
 }
 
 // Mark recommendation as clicked/helpful
-export async function POST(req: Request, { params }: { params: { groupId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ groupId: string }> }) {
+  const resolvedParams = await params;
   const supabase = createRouteHandlerClient({ cookies });
   const role = await getUserRoleServer(supabase as any);
   if (role !== "founder" && role !== "intern") {
@@ -67,7 +69,7 @@ export async function POST(req: Request, { params }: { params: { groupId: string
       .from("ai_recommendations")
       .update(updates)
       .eq("id", recommendationId)
-      .eq("group_id", params.groupId);
+      .eq("group_id", resolvedParams.groupId);
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {

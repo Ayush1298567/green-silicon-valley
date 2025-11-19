@@ -1,5 +1,5 @@
 "use client";
-import { Award, Clock, Calendar, TrendingUp, CheckCircle, Star, ArrowRight, AlertCircle, MessageSquare } from "lucide-react";
+import { Award, Clock, Calendar, TrendingUp, CheckCircle, Star, ArrowRight, AlertCircle, MessageSquare, Package } from "lucide-react";
 import Link from "next/link";
 import VolunteerProgressTracker from "./VolunteerProgressTracker";
 import UpcomingPresentationsWidget from "./UpcomingPresentationsWidget";
@@ -161,6 +161,12 @@ export default function VolunteerDashboardOverview({
               <Link href="/dashboard/volunteer/documents" className="block p-3 bg-indigo-500 text-white rounded-lg text-center hover:bg-indigo-600 transition">
                 Upload Documents
               </Link>
+              {upcomingPresentations.length > 0 && (
+                <Link href="/dashboard/volunteer/materials" className="block p-3 bg-emerald-500 text-white rounded-lg text-center hover:bg-emerald-600 transition">
+                  <Package className="w-4 h-4 inline mr-2" />
+                  Request Materials
+                </Link>
+              )}
               <Link href="/dashboard/volunteer/profile" className="block p-3 bg-purple-500 text-white rounded-lg text-center hover:bg-purple-600 transition">
                 Edit Profile
               </Link>

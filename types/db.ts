@@ -52,7 +52,7 @@ export interface SchoolRow {
 }
 
 export interface VolunteerRow {
-  id: number;
+  id: string;
   user_id: string | null;
   team_name: string | null;
   hours_total: number;
@@ -94,8 +94,8 @@ export interface VolunteerRow {
 
 export interface VolunteerHoursRow {
   id: number;
-  volunteer_id: number; // Changed from string to number - references volunteers.id (team ID)
-  presentation_id: number | null; // Changed from string to number - references presentations.id
+  volunteer_id: string; // References volunteers.id (UUID)
+  presentation_id: string | null; // References presentations.id (UUID)
   date: string | null;
   hours_logged: number;
   activity: string | null;
@@ -109,7 +109,7 @@ export interface VolunteerHoursRow {
 }
 
 export interface PresentationRow {
-  id: number;
+  id: string;
   school_id: number | null;
   scheduled_date: string | null;
   date: string | null;

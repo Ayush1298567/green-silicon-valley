@@ -91,7 +91,7 @@ export default function TeacherRequestForm() {
           science and sustainability.
         </p>
         <p className="text-sm text-gsv-gray mt-2">
-          Please fill out this short form if you'd like to:
+          Please fill out this short form if you&apos;d like to:
         </p>
         <ul className="list-disc list-inside text-sm text-gsv-gray mt-2 ml-4">
           <li>Host a classroom presentation this year</li>
@@ -199,7 +199,7 @@ export default function TeacherRequestForm() {
 
         <div>
           <label className="block text-sm font-medium mb-2">
-            Presentation Topics You're Most Interested In
+            Presentation Topics You&apos;re Most Interested In
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {[
@@ -237,7 +237,7 @@ export default function TeacherRequestForm() {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Anything else you'd like us to know?
+            Anything else you&apos;d like us to know?
           </label>
           <textarea
             name="additional_notes"

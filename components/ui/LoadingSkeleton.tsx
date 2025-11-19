@@ -26,7 +26,7 @@ export default function LoadingSkeleton({
         ease: "easeInOut"
       }
     }
-  };
+  } as const;
 
   return (
     <>

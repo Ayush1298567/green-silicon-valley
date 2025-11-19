@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import SkipToContent from "@/components/SkipToContent";
 import TaskSidePanelWrapper from "@/components/TaskSidePanelWrapper";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeProvider } from "@/lib/theme-context";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -45,15 +46,17 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className={inter.className}>
-        <ToastProvider>
-          <div className="min-h-screen flex flex-col">
-            <SkipToContent />
-            <NavBar />
-            <main id="main-content" className="flex-1" role="main">{children}</main>
-            <Footer />
-            <TaskSidePanelWrapper />
-          </div>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <div className="min-h-screen flex flex-col">
+              <SkipToContent />
+              <NavBar />
+              <main id="main-content" className="flex-1" role="main">{children}</main>
+              <Footer />
+              <TaskSidePanelWrapper />
+            </div>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

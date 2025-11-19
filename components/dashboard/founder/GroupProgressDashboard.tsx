@@ -26,7 +26,11 @@ interface GroupProgress {
   risk_level: 'low' | 'medium' | 'high' | 'urgent';
 }
 
-export default function GroupProgressDashboard() {
+interface GroupProgressDashboardProps {
+  initialData?: any;
+}
+
+export default function GroupProgressDashboard({ initialData }: GroupProgressDashboardProps = {}) {
   const [groups, setGroups] = useState<GroupProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');

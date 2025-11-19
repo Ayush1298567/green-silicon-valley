@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Plus, Calendar, Users, FileText, Settings, MessageSquare, BarChart, BarChart3, Megaphone, Brain, Search, TrendingUp } from "lucide-react";
+import { Plus, Calendar, Users, FileText, Settings, MessageSquare, BarChart, BarChart3, Megaphone, Brain, Search, TrendingUp, Shield, Package, DollarSign } from "lucide-react";
 
 export default function QuickActions() {
   const actions = [
@@ -52,6 +52,30 @@ export default function QuickActions() {
       icon: <MessageSquare className="w-5 h-5" />,
       label: "Applications",
       color: "bg-purple-500 hover:bg-purple-600"
+    },
+    {
+      href: "/admin/teachers",
+      icon: <Users className="w-5 h-5" />,
+      label: "Teacher Mgmt",
+      color: "bg-cyan-500 hover:bg-cyan-600"
+    },
+    {
+      href: "/admin/finance",
+      icon: <DollarSign className="w-5 h-5" />,
+      label: "Budget Mgmt",
+      color: "bg-emerald-500 hover:bg-emerald-600"
+    },
+    {
+      href: "/admin/inventory",
+      icon: <Package className="w-5 h-5" />,
+      label: "Equipment",
+      color: "bg-amber-500 hover:bg-amber-600"
+    },
+    {
+      href: "/admin/safety",
+      icon: <Shield className="w-5 h-5" />,
+      label: "Safety",
+      color: "bg-red-500 hover:bg-red-600"
     },
     {
       href: "/admin/user-manager",
@@ -118,6 +142,18 @@ export default function QuickActions() {
       icon: <MessageSquare className="w-5 h-5" />,
       label: "Post Bulletin",
       color: "bg-yellow-500 hover:bg-yellow-600"
+    },
+    {
+      href: "/dashboard/founder/admin-settings",
+      icon: <Shield className="w-5 h-5" />,
+      label: "Admin Settings",
+      color: "bg-red-500 hover:bg-red-600"
+    },
+    {
+      href: "/dashboard/founder/material-requests",
+      icon: <Package className="w-5 h-5" />,
+      label: "Material Requests",
+      color: "bg-emerald-500 hover:bg-emerald-600"
     }
   ];
 

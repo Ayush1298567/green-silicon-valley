@@ -3,6 +3,8 @@
 -- ============================================================================
 -- This file contains all migrations in order for easy copy-paste
 -- Run this entire file in Supabase SQL Editor
+--
+-- FIX: Added DROP TRIGGER IF EXISTS for all triggers to handle re-runs
 -- ============================================================================
 
 -- ============================================================================
@@ -86,11 +88,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_volunteer_documents_updated_at ON volunteer_documents;
 CREATE TRIGGER update_volunteer_documents_updated_at
   BEFORE UPDATE ON volunteer_documents
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_document_templates_updated_at ON document_templates;
 CREATE TRIGGER update_document_templates_updated_at
   BEFORE UPDATE ON document_templates
   FOR EACH ROW
@@ -128,6 +132,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_create_document_notification ON volunteer_documents;
 CREATE TRIGGER trigger_create_document_notification
   AFTER INSERT ON volunteer_documents
   FOR EACH ROW
@@ -924,6 +929,384 @@ $$ LANGUAGE plpgsql;
 COMMIT;
 
 -- ============================================================================
--- END MIGRATION 6
+-- MIGRATION 7: MATERIAL PROCURMENT & ACCESS CONTROL SYSTEM
 -- ============================================================================
+
+-- Founder-controlled procurement settings
+CREATE TABLE IF NOT EXISTS procurement_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  procurement_enabled boolean DEFAULT false,
+  max_budget_per_group decimal(8,2) DEFAULT 25.00,
+  volunteer_self_fund_allowed boolean DEFAULT true,
+  kit_recommendations_enabled boolean DEFAULT true,
+  kit_inventory_link text,
+  procurement_instructions text DEFAULT 'Please specify exactly what materials you need for your presentation. Include quantities and any specific requirements.',
+  require_budget_justification boolean DEFAULT true,
+  notify_on_request boolean DEFAULT true,
+  notify_on_approval boolean DEFAULT true,
+  updated_by uuid REFERENCES users(id),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern permissions system
+CREATE TABLE IF NOT EXISTS intern_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  intern_id uuid REFERENCES users(id) UNIQUE,
+  permissions jsonb NOT NULL DEFAULT '{
+    "dashboard_access": false,
+    "analytics_view": false,
+    "reports_export": false,
+    "applications_view": false,
+    "applications_approve": false,
+    "applications_reject": false,
+    "volunteer_profiles_edit": false,
+    "teams_view_all": false,
+    "teams_assign_members": false,
+    "teams_edit_details": false,
+    "teams_progress_tracking": false,
+    "website_content_edit": false,
+    "blog_posts_create": false,
+    "announcements_create": false,
+    "resources_upload": false,
+    "procurement_settings_edit": false,
+    "material_requests_approve": false,
+    "material_requests_view": false,
+    "budget_reports_view": false,
+    "email_templates_edit": false,
+    "bulk_messaging_send": false,
+    "notifications_manage": false,
+    "user_management_create": false,
+    "user_management_edit": false,
+    "system_settings_edit": false,
+    "audit_logs_view": false,
+    "international_settings_edit": false,
+    "multi_language_content_edit": false
+  }',
+  granted_by uuid REFERENCES users(id),
+  granted_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- AI alert settings
+CREATE TABLE IF NOT EXISTS ai_alert_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  alert_frequency text DEFAULT 'weekly_critical'
+    CHECK (alert_frequency IN ('weekly_critical', 'critical_only')),
+  weekly_digest_day text DEFAULT 'sunday',
+  weekly_digest_time text DEFAULT '18:00',
+  critical_inactivity_days integer DEFAULT 7,
+  critical_deadline_hours integer DEFAULT 48,
+  critical_budget_overrun_percent integer DEFAULT 10,
+  critical_delivery_delay_hours integer DEFAULT 24,
+  email_alerts boolean DEFAULT true,
+  in_app_alerts boolean DEFAULT true,
+  sms_alerts boolean DEFAULT false,
+  updated_by uuid REFERENCES users(id),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Material requests
+CREATE TABLE IF NOT EXISTS material_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id uuid REFERENCES volunteers(id),
+  presentation_id uuid REFERENCES presentations(id),
+  request_type text CHECK (request_type IN ('gsv_provided', 'volunteer_funded', 'kit_recommendation')),
+  estimated_cost decimal(8,2),
+  budget_justification text,
+  items jsonb DEFAULT '[]',
+  delivery_preference text DEFAULT 'school_address' CHECK (delivery_preference IN ('school_address', 'volunteer_address')),
+  needed_by_date date,
+  status text DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'approved', 'purchased', 'shipped', 'delivered', 'cancelled')),
+  approved_by uuid REFERENCES users(id),
+  approved_at timestamptz,
+  purchased_at timestamptz,
+  shipped_at timestamptz,
+  delivered_at timestamptz,
+  tracking_number text,
+  purchase_notes text,
+  delivery_notes text,
+  cancellation_reason text,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- International settings (hidden by default)
+CREATE TABLE IF NOT EXISTS international_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  international_enabled boolean DEFAULT false,
+  coming_soon_message text DEFAULT 'International expansion coming Q3 2025',
+  supported_countries text[] DEFAULT '{}',
+  language_options text[] DEFAULT '{en}',
+  timezone_support boolean DEFAULT false,
+  compliance_requirements jsonb DEFAULT '{
+    "gdpr_enabled": false,
+    "ccpa_enabled": false,
+    "pipeda_enabled": false
+  }',
+  localized_content jsonb DEFAULT '{}',
+  updated_by uuid REFERENCES users(id),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Audit log for permission changes
+CREATE TABLE IF NOT EXISTS permission_audit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  intern_id uuid REFERENCES users(id),
+  action text CHECK (action IN ('granted', 'revoked', 'updated')),
+  permission_key text,
+  old_value boolean,
+  new_value boolean,
+  changed_by uuid REFERENCES users(id),
+  changed_at timestamptz DEFAULT now()
+);
+
+-- ============================================================================
+-- ENABLE RLS AND CREATE POLICIES
+-- ============================================================================
+
+ALTER TABLE procurement_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intern_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_alert_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE material_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE international_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE permission_audit_log ENABLE ROW LEVEL SECURITY;
+
+-- Procurement Settings: Only founders can access
+DROP POLICY IF EXISTS "procurement_settings_access" ON procurement_settings;
+CREATE POLICY "procurement_settings_access" ON procurement_settings
+  FOR ALL USING (user_role() = 'founder');
+
+-- Intern Permissions: Founders can manage all, interns can view their own
+DROP POLICY IF EXISTS "intern_permissions_founder" ON intern_permissions;
+CREATE POLICY "intern_permissions_founder" ON intern_permissions
+  FOR ALL USING (user_role() = 'founder');
+
+DROP POLICY IF EXISTS "intern_permissions_intern" ON intern_permissions;
+CREATE POLICY "intern_permissions_intern" ON intern_permissions
+  FOR SELECT USING (intern_id = auth.uid());
+
+-- AI Alert Settings: Only founders can access
+DROP POLICY IF EXISTS "ai_alert_settings_access" ON ai_alert_settings;
+CREATE POLICY "ai_alert_settings_access" ON ai_alert_settings
+  FOR ALL USING (user_role() = 'founder');
+
+-- Material Requests: Complex permissions based on roles and request status
+DROP POLICY IF EXISTS "material_requests_founder" ON material_requests;
+CREATE POLICY "material_requests_founder" ON material_requests
+  FOR ALL USING (user_role() = 'founder');
+
+DROP POLICY IF EXISTS "material_requests_intern" ON material_requests;
+CREATE POLICY "material_requests_intern" ON material_requests
+  FOR SELECT USING (
+    user_role() = 'intern' AND
+    EXISTS (
+      SELECT 1 FROM intern_permissions ip
+      WHERE ip.intern_id = auth.uid()
+      AND (ip.permissions->>'material_requests_view')::boolean = true
+    )
+  );
+
+DROP POLICY IF EXISTS "material_requests_intern_approve" ON material_requests;
+CREATE POLICY "material_requests_intern_approve" ON material_requests
+  FOR UPDATE USING (
+    user_role() = 'intern' AND
+    status IN ('submitted', 'approved') AND
+    EXISTS (
+      SELECT 1 FROM intern_permissions ip
+      WHERE ip.intern_id = auth.uid()
+      AND (ip.permissions->>'material_requests_approve')::boolean = true
+    )
+  );
+
+DROP POLICY IF EXISTS "material_requests_volunteer" ON material_requests;
+CREATE POLICY "material_requests_volunteer" ON material_requests
+  FOR ALL USING (
+    user_role() = 'volunteer' AND
+    created_by = auth.uid()
+  );
+
+-- International Settings: Only founders can access
+DROP POLICY IF EXISTS "international_settings_access" ON international_settings;
+CREATE POLICY "international_settings_access" ON international_settings
+  FOR ALL USING (user_role() = 'founder');
+
+-- Permission Audit Log: Only founders can access
+DROP POLICY IF EXISTS "permission_audit_access" ON permission_audit_log;
+CREATE POLICY "permission_audit_access" ON permission_audit_log
+  FOR SELECT USING (user_role() = 'founder');
+
+-- ============================================================================
+-- CREATE INDEXES
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_procurement_settings_updated ON procurement_settings(updated_at);
+CREATE INDEX IF NOT EXISTS idx_intern_permissions_intern ON intern_permissions(intern_id);
+CREATE INDEX IF NOT EXISTS idx_intern_permissions_updated ON intern_permissions(updated_at);
+CREATE INDEX IF NOT EXISTS idx_ai_alert_settings_updated ON ai_alert_settings(updated_at);
+CREATE INDEX IF NOT EXISTS idx_material_requests_group ON material_requests(group_id);
+CREATE INDEX IF NOT EXISTS idx_material_requests_presentation ON material_requests(presentation_id);
+CREATE INDEX IF NOT EXISTS idx_material_requests_status ON material_requests(status);
+CREATE INDEX IF NOT EXISTS idx_material_requests_created ON material_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_material_requests_needed_by ON material_requests(needed_by_date);
+CREATE INDEX IF NOT EXISTS idx_international_settings_enabled ON international_settings(international_enabled);
+CREATE INDEX IF NOT EXISTS idx_permission_audit_intern ON permission_audit_log(intern_id);
+CREATE INDEX IF NOT EXISTS idx_permission_audit_changed ON permission_audit_log(changed_at);
+
+-- ============================================================================
+-- HELPER FUNCTIONS
+-- ============================================================================
+
+-- Function to check intern permissions
+CREATE OR REPLACE FUNCTION intern_has_permission(intern_uuid uuid, permission_key text)
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM intern_permissions ip
+    WHERE ip.intern_id = intern_uuid
+    AND (ip.permissions->>permission_key)::boolean = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to log permission changes
+CREATE OR REPLACE FUNCTION log_permission_change(
+  p_intern_id uuid,
+  p_action text,
+  p_permission_key text,
+  p_old_value boolean,
+  p_new_value boolean,
+  p_changed_by uuid
+)
+RETURNS void AS $$
+BEGIN
+  INSERT INTO permission_audit_log (
+    intern_id, action, permission_key, old_value, new_value, changed_by
+  ) VALUES (
+    p_intern_id, p_action, p_permission_key, p_old_value, p_new_value, p_changed_by
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to validate material request budget
+CREATE OR REPLACE FUNCTION validate_material_budget(request_id uuid)
+RETURNS boolean AS $$
+DECLARE
+  request_record record;
+  settings_record record;
+BEGIN
+  -- Get the request
+  SELECT * INTO request_record FROM material_requests WHERE id = request_id;
+
+  -- Get procurement settings
+  SELECT * INTO settings_record FROM procurement_settings LIMIT 1;
+
+  -- If procurement is disabled, only allow volunteer-funded requests
+  IF settings_record.procurement_enabled = false THEN
+    IF request_record.request_type != 'volunteer_funded' THEN
+      RETURN false;
+    END IF;
+  END IF;
+
+  -- Check budget limit
+  IF request_record.estimated_cost > settings_record.max_budget_per_group THEN
+    RETURN false;
+  END IF;
+
+  RETURN true;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- INITIAL DATA SEEDING
+-- ============================================================================
+
+-- Insert default procurement settings
+INSERT INTO procurement_settings (
+  procurement_enabled,
+  max_budget_per_group,
+  volunteer_self_fund_allowed,
+  kit_recommendations_enabled,
+  procurement_instructions,
+  require_budget_justification,
+  notify_on_request,
+  notify_on_approval
+) VALUES (
+  false, -- Disabled by default - founders must enable
+  25.00, -- $25 per group of 4-5 students
+  true, -- Allow volunteer self-funding by default
+  true, -- Show kit recommendations by default
+  'Please specify exactly what materials you need for your presentation. Include quantities, specific brands if required, and delivery preferences. Budget limit: $25 per group.',
+  true, -- Require justification by default
+  true, -- Notify on requests
+  true -- Notify on approvals
+) ON CONFLICT DO NOTHING;
+
+-- Insert default AI alert settings
+INSERT INTO ai_alert_settings (
+  alert_frequency,
+  weekly_digest_day,
+  weekly_digest_time,
+  critical_inactivity_days,
+  critical_deadline_hours,
+  critical_budget_overrun_percent,
+  critical_delivery_delay_hours,
+  email_alerts,
+  in_app_alerts,
+  sms_alerts
+) VALUES (
+  'weekly_critical', -- Weekly digest + critical alerts only
+  'sunday', -- Sunday evening
+  '18:00', -- 6 PM
+  7, -- 7+ days inactive
+  48, -- 48+ hours to deadline
+  10, -- 10% budget overrun
+  24, -- 24+ hours delivery delay
+  true, -- Email alerts
+  true, -- In-app alerts
+  false -- No SMS by default
+) ON CONFLICT DO NOTHING;
+
+-- Insert default international settings (disabled)
+INSERT INTO international_settings (
+  international_enabled,
+  coming_soon_message,
+  supported_countries,
+  language_options,
+  timezone_support,
+  compliance_requirements,
+  localized_content
+) VALUES (
+  false, -- Disabled by default
+  'International expansion coming Q3 2025. Sign up for updates!',
+  '{}', -- No countries initially
+  '{en}', -- English only initially
+  false, -- No timezone support initially
+  '{
+    "gdpr_enabled": false,
+    "ccpa_enabled": false,
+    "pipeda_enabled": false
+  }',
+  '{}' -- No localized content initially
+) ON CONFLICT DO NOTHING;
+
+COMMIT;
+
+-- ============================================================================
+-- SUCCESS MESSAGE
+-- ============================================================================
+
+DO $$
+BEGIN
+  RAISE NOTICE '🎉 MATERIAL PROCURMENT & ACCESS CONTROL SYSTEM INSTALLED!';
+  RAISE NOTICE '';
+  RAISE NOTICE '✅ Procurement settings configured ($25/group limit)';
+  RAISE NOTICE '✅ Intern permission system ready';
+  RAISE NOTICE '✅ AI alerts set to weekly + critical only';
+  RAISE NOTICE '✅ International features hidden (coming soon)';
+  RAISE NOTICE '✅ Material request workflows prepared';
+  RAISE NOTICE '✅ Audit logging enabled for permissions';
+  RAISE NOTICE '';
+  RAISE NOTICE '🚀 Ready for frontend implementation!';
+END $$;
 

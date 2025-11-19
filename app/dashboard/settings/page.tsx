@@ -1,137 +1,87 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Bell, Mail, User, Shield, CheckCircle2 } from "lucide-react";
+import { User, Bell, Palette, Shield, Eye, Settings as SettingsIcon, CheckCircle2 } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-interface NotificationPreferences {
-  email_enabled: boolean;
-  in_app_enabled: boolean;
-  notification_types: Record<string, { email: boolean; in_app: boolean }>;
-  quiet_hours_start: string | null;
-  quiet_hours_end: string | null;
-  digest_frequency: "immediate" | "daily" | "weekly";
+// Import tab components
+import ProfileTab from "@/components/settings/ProfileTab";
+import NotificationsTab from "@/components/settings/NotificationsTab";
+import AppearanceTab from "@/components/settings/AppearanceTab";
+import AccountSecurityTab from "@/components/settings/AccountSecurityTab";
+import PrivacyTab from "@/components/settings/PrivacyTab";
+import RoleSpecificTab from "@/components/settings/RoleSpecificTab";
+
+type UserRole = "founder" | "intern" | "volunteer" | "teacher";
+
+interface UserData {
+  role: UserRole;
+  name: string;
+  email: string;
 }
+
+const tabs = [
+  { id: "profile", label: "Profile", icon: User, component: ProfileTab },
+  { id: "notifications", label: "Notifications", icon: Bell, component: NotificationsTab },
+  { id: "appearance", label: "Appearance", icon: Palette, component: AppearanceTab },
+  { id: "security", label: "Security", icon: Shield, component: AccountSecurityTab },
+  { id: "privacy", label: "Privacy", icon: Eye, component: PrivacyTab },
+  { id: "role-specific", label: "Role Settings", icon: SettingsIcon, component: RoleSpecificTab },
+];
 
 export default function SettingsPage() {
   const supabase = createClientComponentClient();
+  const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-  
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    email_enabled: true,
-    in_app_enabled: true,
-    notification_types: {},
-    quiet_hours_start: null,
-    quiet_hours_end: null,
-    digest_frequency: "immediate"
-  });
-
-  const [userProfile, setUserProfile] = useState({
-    name: "",
-    email: ""
-  });
 
   useEffect(() => {
-    loadSettings();
+    loadUserData();
   }, []);
 
-  const loadSettings = async () => {
+  const loadUserData = async () => {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Load user profile
-      const { data: user } = await supabase
+      const { data: userRow } = await supabase
         .from("users")
-        .select("name, email")
+        .select("name, email, role")
         .eq("id", session.user.id)
         .single();
 
-      if (user) {
-        setUserProfile({
-          name: user.name || "",
-          email: user.email || ""
-        });
-      }
-
-      // Load notification preferences
-      const { data: prefs } = await supabase
-        .from("user_notification_preferences")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
-
-      if (prefs) {
-        setPreferences({
-          email_enabled: prefs.email_enabled ?? true,
-          in_app_enabled: prefs.in_app_enabled ?? true,
-          notification_types: prefs.notification_types || {},
-          quiet_hours_start: prefs.quiet_hours_start || null,
-          quiet_hours_end: prefs.quiet_hours_end || null,
-          digest_frequency: prefs.digest_frequency || "immediate"
+      if (userRow) {
+        setUserData({
+          role: (userRow.role as UserRole) || "volunteer",
+          name: userRow.name || "",
+          email: userRow.email || ""
         });
       }
     } catch (err) {
-      console.error("Error loading settings:", err);
+      console.error("Error loading user data:", err);
+      setError("Failed to load user data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSavePreferences = async () => {
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess(false);
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError("Not authenticated");
-        return;
-      }
-
-      const { error: prefsError } = await supabase
-        .from("user_notification_preferences")
-        .upsert({
-          user_id: session.user.id,
-          ...preferences,
-          updated_at: new Date().toISOString()
-        });
-
-      if (prefsError) throw prefsError;
-
-      // Update user profile
-      const { error: profileError } = await supabase
-        .from("users")
-        .update({ name: userProfile.name })
-        .eq("id", session.user.id);
-
-      if (profileError) throw profileError;
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Failed to save settings");
-    } finally {
-      setSaving(false);
+  const handleSuccess = (message?: string) => {
+    setSuccess(true);
+    setError("");
+    if (message) {
+      // Could show toast notification here
+      console.log("Success:", message);
     }
+    setTimeout(() => setSuccess(false), 3000);
   };
 
-  const notificationTypes = [
-    { key: "presentation_submitted", label: "Presentation Submitted" },
-    { key: "presentation_approved", label: "Presentation Approved" },
-    { key: "hours_submitted", label: "Hours Submitted" },
-    { key: "hours_approved", label: "Hours Approved" },
-    { key: "hours_rejected", label: "Hours Rejected" },
-    { key: "comment_posted", label: "New Comment" },
-    { key: "comment_reply", label: "Comment Reply" },
-    { key: "application_approved", label: "Application Approved" },
-    { key: "application_rejected", label: "Application Rejected" },
-  ];
+  const handleError = (errorMessage: string) => {
+    setError(errorMessage);
+    setSuccess(false);
+  };
 
   if (loading) {
     return (
@@ -141,14 +91,28 @@ export default function SettingsPage() {
     );
   }
 
+  if (!userData) {
+    return (
+      <div className="container py-14">
+        <div className="text-center py-12 text-red-600">Unable to load user data</div>
+      </div>
+    );
+  }
+
+  const ActiveTabComponent = tabs.find(tab => tab.id === activeTab)?.component;
+
   return (
     <div className="container py-14">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-gsv-charcoal mb-2">Settings</h1>
-          <p className="text-gsv-gray">Manage your account settings and preferences</p>
+          <p className="text-gsv-gray">
+            Manage your account, preferences, and {userData.role} settings
+          </p>
         </div>
 
+        {/* Success/Error Messages */}
         {success && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
             <CheckCircle2 className="w-5 h-5" />
@@ -162,181 +126,56 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Profile Settings */}
-        <div className="card p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="w-5 h-5 text-gsv-green" />
-            <h2 className="text-xl font-semibold text-gsv-charcoal">Profile</h2>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gsv-charcoal mb-2">
-                Name
-              </label>
-              <input
-                type="text"
-                value={userProfile.name}
-                onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gsv-green"
-              />
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Navigation */}
+          <div className="lg:w-64 flex-shrink-0">
+            <div className="card p-4">
+              <nav className="space-y-1">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                        activeTab === tab.id
+                          ? "bg-gsv-green text-white"
+                          : "text-gsv-charcoal hover:bg-gray-100"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm font-medium">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gsv-charcoal mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={userProfile.email}
-                disabled
-                className="w-full border rounded-lg px-3 py-2 bg-gray-50 text-gray-500"
-              />
-              <p className="text-xs text-gsv-gray mt-1">Email cannot be changed</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Notification Preferences */}
-        <div className="card p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Bell className="w-5 h-5 text-gsv-green" />
-            <h2 className="text-xl font-semibold text-gsv-charcoal">Notification Preferences</h2>
-          </div>
-
-          <div className="space-y-6">
-            {/* Global Settings */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-gsv-charcoal">Email Notifications</div>
-                  <div className="text-sm text-gsv-gray">Receive notifications via email</div>
+            {/* User Info Card */}
+            <div className="card p-4 mt-4">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gsv-green rounded-full flex items-center justify-center mx-auto mb-3">
+                  <User className="w-8 h-8 text-white" />
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={preferences.email_enabled}
-                    onChange={(e) => setPreferences({ ...preferences, email_enabled: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gsv-green/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gsv-green"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-gsv-charcoal">In-App Notifications</div>
-                  <div className="text-sm text-gsv-gray">Show notifications in the app</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={preferences.in_app_enabled}
-                    onChange={(e) => setPreferences({ ...preferences, in_app_enabled: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gsv-green/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gsv-green"></div>
-                </label>
+                <h3 className="font-medium text-gsv-charcoal">{userData.name}</h3>
+                <p className="text-sm text-gsv-gray capitalize">{userData.role}</p>
+                <p className="text-xs text-gsv-gray mt-1">{userData.email}</p>
               </div>
             </div>
+          </div>
 
-            {/* Notification Types */}
-            {preferences.email_enabled || preferences.in_app_enabled ? (
-              <div className="border-t pt-4">
-                <h3 className="font-medium text-gsv-charcoal mb-3">Notification Types</h3>
-                <div className="space-y-2">
-                  {notificationTypes.map((type) => {
-                    const typePrefs = preferences.notification_types[type.key] || {
-                      email: preferences.email_enabled,
-                      in_app: preferences.in_app_enabled
-                    };
-                    return (
-                      <div key={type.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gsv-charcoal">{type.label}</span>
-                        <div className="flex items-center gap-4">
-                          {preferences.email_enabled && (
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={typePrefs.email}
-                                onChange={(e) => {
-                                  setPreferences({
-                                    ...preferences,
-                                    notification_types: {
-                                      ...preferences.notification_types,
-                                      [type.key]: {
-                                        ...typePrefs,
-                                        email: e.target.checked
-                                      }
-                                    }
-                                  });
-                                }}
-                                className="w-4 h-4 text-gsv-green rounded focus:ring-gsv-green"
-                              />
-                              <span className="text-xs text-gsv-gray">Email</span>
-                            </label>
-                          )}
-                          {preferences.in_app_enabled && (
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={typePrefs.in_app}
-                                onChange={(e) => {
-                                  setPreferences({
-                                    ...preferences,
-                                    notification_types: {
-                                      ...preferences.notification_types,
-                                      [type.key]: {
-                                        ...typePrefs,
-                                        in_app: e.target.checked
-                                      }
-                                    }
-                                  });
-                                }}
-                                className="w-4 h-4 text-gsv-green rounded focus:ring-gsv-green"
-                              />
-                              <span className="text-xs text-gsv-gray">In-App</span>
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Digest Frequency */}
-            <div className="border-t pt-4">
-              <label className="block text-sm font-medium text-gsv-charcoal mb-2">
-                Notification Frequency
-              </label>
-              <select
-                value={preferences.digest_frequency}
-                onChange={(e) => setPreferences({ ...preferences, digest_frequency: e.target.value as any })}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gsv-green"
-              >
-                <option value="immediate">Immediate</option>
-                <option value="daily">Daily Digest</option>
-                <option value="weekly">Weekly Digest</option>
-              </select>
-              <p className="text-xs text-gsv-gray mt-1">
-                {preferences.digest_frequency === "immediate" && "Receive notifications as they happen"}
-                {preferences.digest_frequency === "daily" && "Receive a summary of all notifications once per day"}
-                {preferences.digest_frequency === "weekly" && "Receive a summary of all notifications once per week"}
-              </p>
+          {/* Main Content */}
+          <div className="flex-1">
+            <div className="card p-6">
+              {ActiveTabComponent && (
+                <ActiveTabComponent
+                  userData={userData}
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                />
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button
-            onClick={handleSavePreferences}
-            disabled={saving}
-            className="px-6 py-3 bg-gsv-green text-white rounded-lg hover:bg-gsv-greenDark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
         </div>
       </div>
     </div>

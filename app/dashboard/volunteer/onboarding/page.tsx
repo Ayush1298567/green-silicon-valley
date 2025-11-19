@@ -25,14 +25,15 @@ interface TopicResource {
   file_url: string;
   storage_path: string;
   file_type: string;
+  is_required?: boolean;
 }
 
 const ONBOARDING_STEPS = [
-  { id: "activity_selected", name: "Choose Activity" },
-  { id: "resources_viewed", name: "View Resources" },
-  { id: "group_chat_setup", name: "Group Chat" },
-  { id: "presentation_created", name: "Create Presentation" },
-  { id: "submitted_for_review", name: "Submit for Review" },
+  { id: "activity_selected", name: "Choose Activity", status: "pending" as const },
+  { id: "resources_viewed", name: "View Resources", status: "pending" as const },
+  { id: "group_chat_setup", name: "Group Chat", status: "pending" as const },
+  { id: "presentation_created", name: "Create Presentation", status: "pending" as const },
+  { id: "submitted_for_review", name: "Submit for Review", status: "pending" as const },
 ];
 
 export default function VolunteerOnboardingPage() {
@@ -236,7 +237,7 @@ export default function VolunteerOnboardingPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gsv-charcoal mb-2">Volunteer Onboarding</h1>
           <p className="text-gsv-gray">
-            Welcome! Let's get you set up to deliver your first presentation.
+            Welcome! Let&apos;s get you set up to deliver your first presentation.
           </p>
         </div>
 
@@ -247,7 +248,7 @@ export default function VolunteerOnboardingPage() {
           <div className="card p-6">
             <h2 className="text-2xl font-bold text-gsv-charcoal mb-4">Step 1: Choose Your Activity</h2>
             <p className="text-gsv-gray mb-6">
-              Select a presentation topic that interests you and your group. You'll receive resources
+              Select a presentation topic that interests you and your group. You&apos;ll receive resources
               and guides to help you create your presentation.
             </p>
             <div className="grid md:grid-cols-2 gap-4">
@@ -351,7 +352,7 @@ export default function VolunteerOnboardingPage() {
           <div className="card p-6">
             <h2 className="text-2xl font-bold text-gsv-charcoal mb-4">Step 3: Group Chat Setup</h2>
             <p className="text-gsv-gray mb-6">
-              We'll create a group chat for your team. Please make sure all group members text the
+              We&apos;ll create a group chat for your team. Please make sure all group members text the
               group chat with their name and phone number.
             </p>
 
@@ -388,7 +389,7 @@ export default function VolunteerOnboardingPage() {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h3 className="font-semibold text-yellow-900 mb-2">Instructions</h3>
                   <ol className="list-decimal list-inside text-sm text-yellow-800 space-y-1">
-                    <li>Click "Create Group Chat" below</li>
+                    <li>Click &quot;Create Group Chat&quot; below</li>
                     <li>Share the group chat link with all your team members</li>
                     <li>Ask each member to text the group chat with their name and phone number</li>
                     <li>Once everyone has joined, you can start coordinating your presentation</li>
@@ -425,7 +426,7 @@ export default function VolunteerOnboardingPage() {
             <h2 className="text-2xl font-bold text-gsv-charcoal mb-4">Step 4: Create Your Presentation</h2>
             <p className="text-gsv-gray mb-6">
               Use the base presentation template you downloaded to create your presentation. Once
-              you're done, submit it for review.
+              you&apos;re done, submit it for review.
             </p>
 
             <div className="space-y-4">
@@ -620,7 +621,7 @@ export default function VolunteerOnboardingPage() {
               <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-green-900 mb-2">Presentation Submitted!</h2>
               <p className="text-green-700 mb-6">
-                Your presentation has been submitted for review. We'll contact you within 48 hours
+                Your presentation has been submitted for review. We&apos;ll contact you within 48 hours
                 with feedback and next steps.
               </p>
               <Link

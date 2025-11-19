@@ -36,7 +36,7 @@ export default function VolunteerSignupForm() {
 
   const handleGroupSizeChange = (size: number) => {
     setGroupSize(size);
-    // Initialize group members array - always create 7 slots, but only require first 'size' members
+    // Initialize group members array - always create 7 slots, but only require first &apos;size&apos; members
     const members: GroupMember[] = [];
     for (let i = 0; i < 7; i++) {
       members.push({ name: "", email: "", phone: "", highschool: "" });
@@ -167,21 +167,21 @@ export default function VolunteerSignupForm() {
                 the form are below - make sure to read before filling out the form!
               </p>
               <p className="text-gsv-gray mb-4">
-                We're running a continuation of an organization that received a 5k grant from Silicon 
+                We&apos;re running a continuation of an organization that received a 5k grant from Silicon 
                 Valley Power a couple years ago where high school students create short, fun STEM 
                 presentations and activities for younger students all focused on how STEM can be used 
                 to help the environment. Please read the directions below, this should only take 10-15 
                 mins to fill out. This is an extremely rewarding volunteer process.
               </p>
-              <h3 className="font-semibold mb-2">Here's how it works:</h3>
+              <h3 className="font-semibold mb-2">Here&apos;s how it works:</h3>
               <ul className="list-disc list-inside text-gsv-gray mb-4 ml-4 space-y-1">
-                <li>You'll make a group of 3-7 students from your school.</li>
+                <li>You&apos;ll make a group of 3-7 students from your school.</li>
                 <li>Put together a short Google Slides presentation + activity for middle or elementary students. (We will give you a base presentation + rubric that you can then edit to fit to how you would like to present)</li>
-                <li>We'll have 2-3 quick meetings (5-10 mins each) with you before you present.</li>
-                <li>Once approved by us you will present it at a school - we'll connect your group with one of the schools/teachers we've partnered with</li>
+                <li>We&apos;ll have 2-3 quick meetings (5-10 mins each) with you before you present.</li>
+                <li>Once approved by us you will present it at a school - we&apos;ll connect your group with one of the schools/teachers we&apos;ve partnered with</li>
                 <li>Overall it should be a pretty quick, simple, and fun process!</li>
               </ul>
-              <h3 className="font-semibold mb-2">What you'll get:</h3>
+              <h3 className="font-semibold mb-2">What you&apos;ll get:</h3>
               <ul className="list-disc list-inside text-gsv-gray mb-4 ml-4 space-y-1">
                 <li>Earn 6–8 volunteer hours per session (and you can present as many times as you want).</li>
                 <li>Build leadership & teamwork skills.</li>
@@ -202,8 +202,8 @@ export default function VolunteerSignupForm() {
                 receive a response in 48 hours please text this number: (408) 647-6201
               </p>
               <p className="font-semibold text-gsv-gray mb-4">
-                Remember: ONLY ONE PERSON FILLS THIS FORM OUT PER GROUP!!! Fill out this form with 
-                your group info and choices. Once you submit, we'll send you next steps within 48 hours!
+                Remember: ONLY ONE PERSON FILLS THIS FORM OUT PER GROUP!!! Fill out this form with
+                your group info and choices. Once you submit, we&apos;ll send you next steps within 48 hours!
               </p>
             </div>
             <FormField
@@ -238,8 +238,8 @@ export default function VolunteerSignupForm() {
         {currentSection === 2 && (
           <div className="space-y-4">
             <p className="text-gsv-gray mb-4">
-              We will make a group chat on messages or slack to coordinate with you all. We will 
-              contact you all through email first. If we don't get a reply within 5 days of sending 
+              We will make a group chat on messages or slack to coordinate with you all. We will
+              contact you all through email first. If we don&apos;t get a reply within 5 days of sending
               out an email we will try to reach you all on messages.
             </p>
             <FormField
@@ -472,14 +472,14 @@ export default function VolunteerSignupForm() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
-                In 1-2 sentences summarize why you would like to volunteer with us. (doesn't need to be an essay) <span className="text-red-500">*</span>
+                In 1-2 sentences summarize why you would like to volunteer with us. (doesn&apos;t need to be an essay) <span className="text-red-500">*</span>
               </label>
               <textarea
                 name="why_volunteer"
                 required
                 rows={4}
                 className="w-full border rounded-lg px-3 py-2"
-                placeholder="Tell us why you're interested..."
+                placeholder="Tell us why you&apos;re interested..."
               />
             </div>
             <div className="flex gap-2">

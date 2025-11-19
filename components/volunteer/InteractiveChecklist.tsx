@@ -17,6 +17,8 @@ interface ChecklistItem {
   priority: string;
   order_index: number;
   help_resources: any[];
+  autoComplete?: boolean;
+  helpUrl?: string;
 }
 
 interface InteractiveChecklistProps {

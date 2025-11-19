@@ -5,8 +5,8 @@ import { runAIQuery } from './aiClient';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export interface AICommand {
-  intent: 'create' | 'update' | 'delete' | 'query' | 'send' | 'report' | 'approve' | 'reject' | 'unknown';
-  entity: 'school' | 'volunteer' | 'presentation' | 'user' | 'email' | 'application' | 'report' | 'unknown';
+  intent: 'create' | 'update' | 'delete' | 'query' | 'send' | 'report' | 'approve' | 'reject' | 'notes' | 'contact' | 'schedule' | 'unknown';
+  entity: 'school' | 'volunteer' | 'presentation' | 'user' | 'email' | 'application' | 'report' | 'teacher' | 'budget' | 'equipment' | 'safety' | 'unknown';
   confidence: number;
   parameters: {
     // School parameters
@@ -15,8 +15,6 @@ export interface AICommand {
     schoolCity?: string;
     schoolState?: string;
     schoolDistrict?: string;
-    teacherName?: string;
-    teacherEmail?: string;
 
     // Volunteer parameters
     volunteerName?: string;
@@ -42,6 +40,28 @@ export interface AICommand {
     queryType?: 'count' | 'list' | 'details' | 'summary';
     filters?: Record<string, any>;
     dateRange?: { start: string; end: string };
+
+    // Teacher-specific parameters
+    teacherName?: string;
+    teacherEmail?: string;
+    teacherStatus?: string;
+    priority?: 'low' | 'medium' | 'high';
+    notes?: string;
+    contactMethod?: 'email' | 'phone' | 'mail';
+
+    // Budget parameters
+    budgetCategory?: string;
+    budgetAmount?: number;
+    expenseDescription?: string;
+
+    // Equipment parameters
+    equipmentName?: string;
+    equipmentCategory?: string;
+    equipmentStatus?: string;
+
+    // Safety parameters
+    incidentType?: string;
+    severity?: 'minor' | 'moderate' | 'serious' | 'critical';
 
     // Bulk operations
     bulkAction?: 'approve' | 'reject' | 'update' | 'notify';
@@ -73,26 +93,33 @@ Parse this user command and extract structured information.
 User said: "${userInput}"
 
 Available actions:
-- CREATE: Add new schools, volunteers, presentations
-- UPDATE: Modify existing records
+- CREATE: Add new schools, volunteers, presentations, equipment
+- UPDATE: Modify existing records, add notes, change status
 - DELETE: Remove records (rare, requires confirmation)
 - QUERY: Get information, counts, lists, reports
 - SEND: Send emails, notifications, messages
 - APPROVE/REJECT: Handle applications and requests
+- NOTES: Add or update internal notes
+- CONTACT: Update contact information and methods
+- SCHEDULE: Create presentations and appointments
 - REPORT: Generate summaries and analytics
 
 Available entities:
 - school: Educational institutions
 - volunteer: Student volunteer teams
 - presentation: Environmental STEM presentations
-- user: Platform users (founders, interns, volunteers)
+- user: Platform users (founders, interns, volunteers, teachers)
 - email: Email communications
 - application: Volunteer applications
+- teacher: Teacher applications and management
+- budget: Financial categories and transactions
+- equipment: Equipment inventory and maintenance
+- safety: Safety incidents and emergency contacts
 
 Return a JSON object with this exact structure:
 {
-  "intent": "create|update|delete|query|send|approve|reject|report|unknown",
-  "entity": "school|volunteer|presentation|user|email|application|report|unknown",
+  "intent": "create|update|delete|query|send|approve|reject|notes|contact|schedule|report|unknown",
+  "entity": "school|volunteer|presentation|user|email|application|teacher|budget|equipment|safety|report|unknown",
   "confidence": 0.0-1.0,
   "parameters": {
     // Fill in relevant parameters based on the command
@@ -207,12 +234,19 @@ class AICommandExecutor {
           return await this.executeApprove(command, userId);
         case 'reject':
           return await this.executeReject(command, userId);
+        case 'notes':
+          return await this.updateTeacherNotes(command.parameters);
+        case 'contact':
+          return await this.updateTeacherStatus(command.parameters);
+        case 'schedule':
+          // For now, redirect to presentation creation
+          return await this.createPresentation({ ...command.parameters, schoolId: command.parameters.teacherEmail }, userId);
         case 'report':
           return await this.executeReport(command, userId);
         default:
           return {
             success: false,
-            message: "I don't understand that command. Try: 'Add a school', 'Send an email', 'Show me volunteers', or 'Generate a report'."
+            message: "I don't understand that command. Try: 'Show me teachers', 'Add notes to teacher John', 'Update teacher status', or 'Generate a report'."
           };
       }
     } catch (error: any) {
@@ -238,6 +272,16 @@ class AICommandExecutor {
       default:
         return { success: false, message: "I can create schools, volunteers, and presentations. What would you like to create?" };
     }
+  }
+
+  private async executeUpdate(command: AICommand, userId: string): Promise<AIResponse> {
+    // Placeholder for update operations
+    return { success: false, message: "Update operations are not yet implemented." };
+  }
+
+  private async executeDelete(command: AICommand, userId: string): Promise<AIResponse> {
+    // Placeholder for delete operations
+    return { success: false, message: "Delete operations are not yet implemented." };
   }
 
   private async createSchool(params: any, userId: string): Promise<AIResponse> {
@@ -309,12 +353,14 @@ class AICommandExecutor {
         return await this.queryVolunteers(command.parameters);
       case 'school':
         return await this.querySchools(command.parameters);
+      case 'teacher':
+        return await this.queryTeachers(command.parameters);
       case 'presentation':
         return await this.queryPresentations(command.parameters);
       case 'application':
         return await this.queryApplications(command.parameters);
       default:
-        return { success: false, message: "I can query volunteers, schools, presentations, and applications. What would you like to know?" };
+        return { success: false, message: "I can query volunteers, schools, teachers, presentations, and applications. What would you like to know?" };
     }
   }
 
@@ -381,6 +427,147 @@ class AICommandExecutor {
       success: true,
       message,
       data: data
+    };
+  }
+
+  private async queryTeachers(params: any): Promise<AIResponse> {
+    let query = this.supabase
+      .from('schools')
+      .select('id, name, email, application_status, priority, city, state, grade_levels, topic_interests, preferred_months, last_contacted, created_at')
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (params.teacherStatus) {
+      query = query.eq('application_status', params.teacherStatus);
+    }
+
+    if (params.priority) {
+      query = query.eq('priority', params.priority);
+    }
+
+    if (params.filters?.location) {
+      query = query.ilike('city', `%${params.filters.location}%`);
+    }
+
+    const { data, error } = await query.limit(20);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return {
+        success: true,
+        message: "No teacher applications found matching your criteria."
+      };
+    }
+
+    const message = `Found ${data.length} teacher application${data.length === 1 ? '' : 's'}:${data.map(teacher => {
+      const status = teacher.application_status || 'pending';
+      const priority = teacher.priority || 'medium';
+      const location = teacher.city && teacher.state ? `${teacher.city}, ${teacher.state}` : 'Location not specified';
+      const lastContact = teacher.last_contacted ? new Date(teacher.last_contacted).toLocaleDateString() : 'Never contacted';
+
+      return `\n• ${teacher.name} (${teacher.email}) - Status: ${status}, Priority: ${priority}, Location: ${location}, Last Contact: ${lastContact}`;
+    }).join('')}`;
+
+    return {
+      success: true,
+      message,
+      data
+    };
+  }
+
+  private async updateTeacherNotes(params: any): Promise<AIResponse> {
+    if (!params.teacherName && !params.teacherEmail) {
+      return {
+        success: false,
+        message: "Please specify a teacher name or email to update notes."
+      };
+    }
+
+    let query = this.supabase.from('schools').select('id, name, email, internal_notes');
+
+    if (params.teacherEmail) {
+      query = query.eq('email', params.teacherEmail);
+    } else {
+      query = query.ilike('name', `%${params.teacherName}%`);
+    }
+
+    const { data: existing, error: findError } = await query.single();
+
+    if (findError || !existing) {
+      return {
+        success: false,
+        message: `Could not find teacher ${params.teacherName || params.teacherEmail}.`
+      };
+    }
+
+    const currentNotes = existing.internal_notes || '';
+    const newNotes = params.notes;
+    const updatedNotes = currentNotes ? `${currentNotes}\n\n${new Date().toISOString()}: ${newNotes}` : `${new Date().toISOString()}: ${newNotes}`;
+
+    const { error: updateError } = await this.supabase
+      .from('schools')
+      .update({
+        internal_notes: updatedNotes,
+        last_contacted: new Date().toISOString()
+      })
+      .eq('id', existing.id);
+
+    if (updateError) throw updateError;
+
+    return {
+      success: true,
+      message: `Updated notes for ${existing.name}.`,
+      data: { teacherId: existing.id, notes: updatedNotes }
+    };
+  }
+
+  private async updateTeacherStatus(params: any): Promise<AIResponse> {
+    if (!params.teacherName && !params.teacherEmail) {
+      return {
+        success: false,
+        message: "Please specify a teacher name or email to update status."
+      };
+    }
+
+    if (!params.teacherStatus) {
+      return {
+        success: false,
+        message: "Please specify the new status (pending, reviewed, contacted, scheduled, completed, rejected)."
+      };
+    }
+
+    let query = this.supabase.from('schools').select('id, name, email, application_status');
+
+    if (params.teacherEmail) {
+      query = query.eq('email', params.teacherEmail);
+    } else {
+      query = query.ilike('name', `%${params.teacherName}%`);
+    }
+
+    const { data: existing, error: findError } = await query.single();
+
+    if (findError || !existing) {
+      return {
+        success: false,
+        message: `Could not find teacher ${params.teacherName || params.teacherEmail}.`
+      };
+    }
+
+    const { error: updateError } = await this.supabase
+      .from('schools')
+      .update({
+        application_status: params.teacherStatus,
+        last_contacted: new Date().toISOString()
+      })
+      .eq('id', existing.id);
+
+    if (updateError) throw updateError;
+
+    return {
+      success: true,
+      message: `Updated ${existing.name} status to ${params.teacherStatus}.`,
+      data: { teacherId: existing.id, status: params.teacherStatus }
     };
   }
 

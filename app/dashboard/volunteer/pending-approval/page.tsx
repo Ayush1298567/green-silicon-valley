@@ -49,7 +49,7 @@ export default async function PendingApprovalPage() {
           </h1>
           
           <p className="text-gsv-gray mb-6 text-lg">
-            Thank you for submitting your volunteer application! Your team's application is currently being reviewed by our team.
+            Thank you for submitting your volunteer application! Your team&apos;s application is currently being reviewed by our team.
           </p>
 
           {volunteer && (
@@ -89,16 +89,16 @@ export default async function PendingApprovalPage() {
             </h3>
             <ul className="text-left text-blue-800 space-y-2 text-sm">
               <li>• Our team will review your application within 48 hours</li>
-              <li>• You'll receive an email notification once your application is approved</li>
-              <li>• Once approved, you'll get access to your volunteer dashboard</li>
-              <li>• You'll be able to start the onboarding process and select your presentation topic</li>
+              <li>• You&apos;ll receive an email notification once your application is approved</li>
+              <li>• Once approved, you&apos;ll get access to your volunteer dashboard</li>
+              <li>• You&apos;ll be able to start the onboarding process and select your presentation topic</li>
             </ul>
           </div>
 
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="font-semibold mb-3">Need Help?</h3>
             <p className="text-sm text-gsv-gray mb-4">
-              If you have questions or haven't heard back within 48 hours, please contact us:
+              If you have questions or haven&apos;t heard back within 48 hours, please contact us:
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center text-sm">
               <a href="mailto:greensiliconvalley27@gmail.com" className="flex items-center gap-2 text-gsv-green hover:underline">

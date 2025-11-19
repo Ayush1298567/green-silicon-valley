@@ -1,0 +1,19 @@
+# Supabase Configuration
+# Get these values from your Supabase project dashboard → Settings → API
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# App Configuration
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# AI Configuration (optional)
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
+
+# NextAuth Secret (generate a random string)
+NEXTAUTH_SECRET=your-random-secret-here
+
+# Automation
+AUTOMATION_TIMES=03:30,20:00
+CRON_SECRET=change_me_to_random_string

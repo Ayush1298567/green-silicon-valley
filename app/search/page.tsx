@@ -97,7 +97,7 @@ export default function SearchPage() {
                   "Searching..."
                 ) : (
                   <>
-                    Found {total} result{total !== 1 ? "s" : ""} for "{currentQuery}"
+                    Found {total} result{total !== 1 ? "s" : ""} for &quot;{currentQuery}&quot;
                   </>
                 )}
               </div>
@@ -127,7 +127,7 @@ export default function SearchPage() {
             ) : results.length === 0 ? (
               <div className="text-center py-12">
                 <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gsv-gray">No results found for "{currentQuery}"</p>
+                <p className="text-gsv-gray">No results found for &quot;{currentQuery}&quot;</p>
                 <p className="text-sm text-gsv-gray mt-2">Try different keywords or check your spelling</p>
               </div>
             ) : (

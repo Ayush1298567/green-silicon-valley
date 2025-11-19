@@ -5,48 +5,69 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}"
   ],
+  darkMode: "class",
   theme: {
+    fontFamily: {
+      sans: [
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'SF Pro Text',
+        'system-ui',
+        'sans-serif'
+      ],
+      display: [
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'SF Pro Display',
+        'system-ui',
+        'sans-serif'
+      ]
+    },
     extend: {
       colors: {
+        // Apple-inspired minimalism with green accents
         gsv: {
-          // Primary - Grounded Green (Professional, Eco-focused)
-          green: "#2D7A4F",        // Deep forest green (primary)
-          greenDark: "#1F5438",    // Darker shade for hover
-          greenLight: "#3A9461",   // Lighter for accents
-          greenSoft: "#E8F5EE",    // Very light for backgrounds
-          greenMuted: "#4A9B6A",   // Muted for secondary elements
+          // Primary - Apple Green (Sophisticated, Trustworthy)
+          green: "#007AFF",        // Apple blue (primary actions)
+          greenDark: "#005BD3",    // Darker for hover states
+          greenLight: "#4DA3FF",   // Lighter for secondary elements
+          greenSoft: "#E6F2FF",    // Very light for backgrounds
+          greenMuted: "#7AB8FF",   // Muted for supporting elements
 
-          // Secondary - Warm Confident Tones
-          warm: "#D97642",         // Warm terracotta/orange
-          warmDark: "#B85F2F",     // Darker warm
-          warmLight: "#E89563",    // Lighter warm
-          warmSoft: "#FFF4ED",     // Very light warm background
+          // Secondary - Environmental Green
+          eco: "#30D158",          // Apple green for environmental theme
+          ecoDark: "#248A3D",      // Darker eco green
+          ecoLight: "#66D477",     // Lighter eco green
+          ecoSoft: "#E8F8E8",      // Very light eco background
 
-          // Neutrals - Professional & Reliable
-          charcoal: "#1A1A1A",     // Almost black
+          // Tertiary - Warm accent
+          warm: "#FF9F0A",         // Apple orange/warm
+          warmDark: "#E68606",    // Darker warm
+          warmLight: "#FFB340",   // Lighter warm
+          warmSoft: "#FFF8E6",    // Very light warm background
+
+          // System Grays - Apple System Colors
           gray: {
-            50: "#FAFAFA",
-            100: "#F5F5F5",
-            200: "#E5E5E5",
-            300: "#D4D4D4",
-            400: "#A3A3A3",
-            500: "#737373",
-            600: "#525252",
-            700: "#404040",
-            800: "#262626",
-            900: "#171717"
+            50: "#F9F9F9",        // System background (lightest)
+            100: "#F2F2F7",       // Secondary system background
+            200: "#E5E5EA",       // Tertiary system background
+            300: "#D1D1D6",       // Separator color
+            400: "#C7C7CC",       // System fill (light)
+            500: "#AEAEB2",       // System fill
+            600: "#8E8E93",       // Secondary label
+            700: "#636366",       // Tertiary label
+            800: "#48484A",       // Quaternary label
+            900: "#1C1C1E"        // Primary label (darkest)
           },
-          slate: {
-            900: "#1E293B",        // Very dark slate
-            800: "#334155",        // Dark slate
-            700: "#475569",        // Medium-dark slate
-            600: "#64748B",        // Medium slate
-            500: "#94A3B8",        // Light-medium slate
-            400: "#CBD5E1",        // Light slate
-            300: "#E2E8F0",        // Very light slate
-            200: "#F1F5F9",        // Almost white slate
-            100: "#F8FAFC"         // Off-white
-          }
+
+          // Text colors
+          charcoal: "#1A1A1A",     // Primary text color
+
+          // Semantic colors for status
+          success: "#30D158",      // Apple green for success
+          warning: "#FF9F0A",      // Apple orange for warnings
+          error: "#FF453A",        // Apple red for errors
+          info: "#64D2FF"          // Apple blue for information
         },
         // Keep accent colors for specific use cases
         accent: {
@@ -60,16 +81,21 @@ const config: Config = {
         }
       },
       boxShadow: {
-        soft: "0 4px 20px rgba(0,0,0,0.06)",
-        "soft-lg": "0 10px 40px rgba(0,0,0,0.08)",
-        "soft-xl": "0 20px 60px rgba(0,0,0,0.12)",
-        "inner-soft": "inset 0 2px 4px rgba(0,0,0,0.06)",
-        "glow-green": "0 0 40px rgba(43, 174, 102, 0.3)"
+        // Apple-inspired subtle shadows
+        soft: "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
+        "soft-lg": "0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)",
+        "soft-xl": "0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)",
+        "inner-soft": "inset 0 1px 2px rgba(0,0,0,0.08)",
+        "glow-green": "0 0 20px rgba(0, 122, 255, 0.15)"
       },
       borderRadius: {
-        xl: "14px",
-        "2xl": "18px",
-        "3xl": "24px"
+        // Apple border radius (more rounded)
+        sm: "6px",
+        md: "8px",
+        lg: "10px",
+        xl: "12px",
+        "2xl": "16px",
+        "3xl": "20px"
       },
       fontSize: {
         "hero": ["72px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "800" }],

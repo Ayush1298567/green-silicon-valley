@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardKPIs from "@/components/dashboard/founder/DashboardKPIs";
 import ActivityFeed from "@/components/dashboard/founder/ActivityFeed";
 import UpcomingCalendar from "@/components/dashboard/founder/UpcomingCalendar";
@@ -82,7 +82,7 @@ export default function FounderDashboardClient({
         <div>
           <h1 className="text-3xl font-bold text-gsv-charcoal">Founder Dashboard</h1>
           <p className="text-gsv-gray mt-2">
-            Welcome back, {userName}! Here's your organizational overview with AI assistance.
+            Welcome back, {userName}! Here&apos;s your organizational overview with AI assistance.
           </p>
         </div>
         <button

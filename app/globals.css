@@ -61,6 +61,34 @@
   --accent-soft: #E8F5EE;
 }
 
+/* Dark Mode Variables */
+.dark {
+  /* Background Colors */
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+
+  /* Text Colors */
+  --fg: #f8fafc;
+  --fg-secondary: #e2e8f0;
+  --fg-muted: #94a3b8;
+
+  /* Card Colors */
+  --card-bg: #1e293b;
+  --card-border: #334155;
+
+  /* Input Colors */
+  --input-bg: #334155;
+  --input-border: #475569;
+  --input-focus: #2D7A4F;
+
+  /* Button Colors */
+  --button-primary: #2D7A4F;
+  --button-primary-hover: #1F5438;
+  --button-secondary: #475569;
+  --button-secondary-hover: #334155;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
@@ -90,7 +118,9 @@ body {
 
 /* Professional card styling */
 .card {
-  @apply bg-white rounded-xl shadow-soft border border-gray-100 transition-all duration-200;
+  background: var(--card-bg, #ffffff);
+  @apply rounded-xl shadow-soft border transition-all duration-200;
+  border-color: var(--card-border, #f3f4f6);
 }
 
 .card:hover {
@@ -111,7 +141,7 @@ body {
 }
 
 .btn-ghost {
-  @apply text-gsv-gray hover:text-gsv-charcoal hover:bg-gray-50;
+  @apply text-gsv-gray-600 hover:text-gsv-charcoal hover:bg-gray-50;
 }
 
 /* Input styles */
@@ -233,7 +263,7 @@ body {
 }
 
 .prose blockquote {
-  @apply border-l-4 border-gsv-green pl-4 italic my-4 text-gsv-gray;
+  @apply border-l-4 border-gsv-green pl-4 italic my-4 text-gsv-gray-600;
 }
 
 /* Ensure proper z-index layering */

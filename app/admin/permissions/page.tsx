@@ -90,6 +90,41 @@ const PERMISSION_CATEGORIES = {
       { id: "analytics.view", name: "View Analytics", description: "See dashboard analytics" },
       { id: "analytics.export", name: "Export Data", description: "Download reports" }
     ]
+  },
+  teachers: {
+    label: "Teacher Management",
+    permissions: [
+      { id: "teachers.view", name: "View Applications", description: "See teacher applications" },
+      { id: "teachers.edit", name: "Edit Applications", description: "Modify application status and notes" },
+      { id: "teachers.contact", name: "Contact Teachers", description: "Send emails and messages to teachers" },
+      { id: "teachers.schedule", name: "Schedule Presentations", description: "Create presentations for teachers" }
+    ]
+  },
+  finance: {
+    label: "Financial Management",
+    permissions: [
+      { id: "finance.view", name: "View Budgets", description: "See budget categories and spending" },
+      { id: "finance.edit", name: "Manage Budgets", description: "Create and modify budget categories" },
+      { id: "finance.approve", name: "Approve Expenses", description: "Approve expense requests" },
+      { id: "finance.export", name: "Export Reports", description: "Download financial reports" }
+    ]
+  },
+  safety: {
+    label: "Safety & Emergency",
+    permissions: [
+      { id: "safety.view", name: "View Incidents", description: "See safety incidents and contacts" },
+      { id: "safety.edit", name: "Manage Safety", description: "Create and update safety records" },
+      { id: "safety.emergency", name: "Emergency Access", description: "Access emergency contact information" }
+    ]
+  },
+  equipment: {
+    label: "Equipment Management",
+    permissions: [
+      { id: "equipment.view", name: "View Equipment", description: "See equipment inventory" },
+      { id: "equipment.edit", name: "Manage Equipment", description: "Add, edit, and track equipment" },
+      { id: "equipment.checkout", name: "Equipment Checkout", description: "Check out and return equipment" },
+      { id: "equipment.maintenance", name: "Maintenance Records", description: "View and update maintenance logs" }
+    ]
   }
 };
 

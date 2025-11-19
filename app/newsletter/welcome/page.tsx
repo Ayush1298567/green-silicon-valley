@@ -19,13 +19,13 @@ export default function NewsletterWelcomePage() {
           </h1>
           
           <p className="text-gsv-gray mb-6 text-lg">
-            Thank you for subscribing to our newsletter! You're now part of our community dedicated to environmental STEM education.
+            Thank you for subscribing to our newsletter! You&apos;re now part of our community dedicated to environmental STEM education.
           </p>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
             <h3 className="font-semibold text-green-900 mb-3 flex items-center justify-center gap-2">
               <CheckCircle className="w-5 h-5" />
-              What You'll Receive
+              What You&apos;ll Receive
             </h3>
             <ul className="text-left text-green-800 space-y-2 text-sm">
               <li>• Monthly updates on our impact and programs</li>

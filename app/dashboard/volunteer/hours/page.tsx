@@ -68,12 +68,20 @@ export default async function VolunteerHoursPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gsv-charcoal mb-2">Submit Hours & Feedback</h1>
           <p className="text-gsv-gray">
-            Log your volunteer hours and share your experience from presentations you've completed.
+            Log your volunteer hours and share your experience from presentations you&apos;ve completed.
           </p>
         </div>
 
         <div className="card p-6">
-          <form action={Submit} className="space-y-4">
+          <form action={async (formData: FormData) => {
+            const result = await Submit(formData);
+            if (result.error) {
+              setError(result.error);
+            } else {
+              setSuccess(true);
+              setTimeout(() => setSuccess(false), 3000);
+            }
+          }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gsv-charcoal mb-2">
                 Presentation <span className="text-red-500">*</span>
@@ -139,8 +147,8 @@ export default async function VolunteerHoursPage() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Your hours will be reviewed by founders before being approved. 
-                You'll receive a notification when they're approved or if any changes are needed.
+                <strong>Note:</strong> Your hours will be reviewed by founders before being approved.
+                You&apos;ll receive a notification when they&apos;re approved or if any changes are needed.
               </p>
             </div>
 

@@ -41,7 +41,7 @@ export default function GetInvolvedPage() {
       <h1 className="text-3xl font-bold">Get Involved</h1>
       <p className="mt-3 text-gsv-gray max-w-2xl">
         Join us as a volunteer or intern. Teachers can request a presentation
-        and we'll reach out with scheduling details.
+        and we&apos;ll reach out with scheduling details.
       </p>
       <div className="grid md:grid-cols-3 gap-6 mt-8">
         <div className="card p-6 hover:shadow-lg transition cursor-pointer" onClick={() => setActiveTab("volunteer")}>

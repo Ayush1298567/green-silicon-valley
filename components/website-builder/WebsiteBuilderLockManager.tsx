@@ -287,7 +287,7 @@ export default function WebsiteBuilderLockManager({
             </div>
 
             <p className="text-gray-600 mb-6">
-              This will remove the current editor's lock on "{pageId}". The current editor may lose unsaved changes. Only use this if necessary.
+              This will remove the current editor&apos;s lock on &quot;{pageId}&quot;. The current editor may lose unsaved changes. Only use this if necessary.
             </p>
 
             <div className="flex gap-3">
