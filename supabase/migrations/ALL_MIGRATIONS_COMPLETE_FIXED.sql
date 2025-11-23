@@ -926,6 +926,215 @@ CREATE INDEX IF NOT EXISTS idx_edit_locks_active ON edit_locks(is_active, expire
 CREATE INDEX IF NOT EXISTS idx_edit_locks_expires ON edit_locks(expires_at);
 
 -- ============================================================================
+-- AI AGENT MODE TABLES - Enhanced AI Capabilities
+-- ============================================================================
+
+-- AI conversations and context (for persistent chat sessions)
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  session_id text NOT NULL,
+  messages jsonb NOT NULL,
+  context jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- AI-generated actions and workflows
+CREATE TABLE IF NOT EXISTS ai_actions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  action_type text NOT NULL,
+  action_data jsonb NOT NULL,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'executed', 'rejected')),
+  approved_by uuid REFERENCES users(id),
+  approved_at timestamptz,
+  executed_at timestamptz,
+  results jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- AI learning and user preferences
+CREATE TABLE IF NOT EXISTS ai_learning (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id),
+  category text NOT NULL,
+  pattern jsonb NOT NULL,
+  confidence numeric,
+  last_used timestamptz DEFAULT now(),
+  success_rate numeric DEFAULT 0
+);
+
+-- Automated workflows
+CREATE TABLE IF NOT EXISTS ai_workflows (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  trigger_conditions jsonb NOT NULL,
+  actions jsonb NOT NULL,
+  created_by uuid REFERENCES users(id),
+  status text DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived')),
+  created_at timestamptz DEFAULT now(),
+  last_executed timestamptz,
+  execution_count integer DEFAULT 0
+);
+
+-- Form intelligence tables (for Google Sheets-like forms)
+CREATE TABLE IF NOT EXISTS forms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  created_by uuid REFERENCES users(id),
+  status text DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  settings jsonb DEFAULT '{}',
+  sheet_metadata jsonb DEFAULT '{}',
+  notification_settings jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Form columns (spreadsheet columns/questions)
+CREATE TABLE IF NOT EXISTS form_columns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_id uuid REFERENCES forms(id) ON DELETE CASCADE,
+  column_index integer NOT NULL,
+  title text NOT NULL,
+  field_type text NOT NULL,
+  validation_rules jsonb DEFAULT '{}',
+  formatting jsonb DEFAULT '{}',
+  formula text,
+  required boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Form responses (spreadsheet rows)
+CREATE TABLE IF NOT EXISTS form_responses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_id uuid REFERENCES forms(id) ON DELETE CASCADE,
+  row_index integer NOT NULL,
+  response_data jsonb NOT NULL,
+  submitted_by uuid REFERENCES users(id),
+  status text DEFAULT 'unread' CHECK (status IN ('unread', 'read', 'flagged', 'archived')),
+  submitted_at timestamptz DEFAULT now(),
+  edited_at timestamptz,
+  edited_by uuid REFERENCES users(id)
+);
+
+-- Real-time collaboration sessions
+CREATE TABLE IF NOT EXISTS form_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_id uuid REFERENCES forms(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  cursor_position jsonb,
+  last_activity timestamptz DEFAULT now()
+);
+
+-- Row Level Security for AI tables
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_learning ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_workflows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_columns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_sessions ENABLE ROW LEVEL SECURITY;
+
+-- AI Conversations Policies (users can only see their own)
+DROP POLICY IF EXISTS "ai_conversations_access" ON ai_conversations;
+CREATE POLICY "ai_conversations_access" ON ai_conversations
+  FOR ALL USING (user_id = auth.uid());
+
+-- AI Actions Policies (users can see their own actions, founders can see all)
+DROP POLICY IF EXISTS "ai_actions_access" ON ai_actions;
+CREATE POLICY "ai_actions_access" ON ai_actions
+  FOR ALL USING (
+    user_id = auth.uid() OR
+    user_role() = 'founder'
+  );
+
+-- AI Learning Policies (personalized learning data)
+DROP POLICY IF EXISTS "ai_learning_access" ON ai_learning;
+CREATE POLICY "ai_learning_access" ON ai_learning
+  FOR ALL USING (user_id = auth.uid());
+
+-- AI Workflows Policies (creators and founders can access)
+DROP POLICY IF EXISTS "ai_workflows_access" ON ai_workflows;
+CREATE POLICY "ai_workflows_access" ON ai_workflows
+  FOR ALL USING (
+    created_by = auth.uid() OR
+    user_role() = 'founder'
+  );
+
+-- Forms Policies (creators and founders can access)
+DROP POLICY IF EXISTS "forms_access" ON forms;
+CREATE POLICY "forms_access" ON forms
+  FOR ALL USING (
+    created_by = auth.uid() OR
+    user_role() IN ('founder', 'intern')
+  );
+
+-- Form Columns Policies (follow form permissions)
+DROP POLICY IF EXISTS "form_columns_access" ON form_columns;
+CREATE POLICY "form_columns_access" ON form_columns
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM forms
+      WHERE forms.id = form_columns.form_id
+      AND (forms.created_by = auth.uid() OR user_role() IN ('founder', 'intern'))
+    )
+  );
+
+-- Form Responses Policies (form creators and founders can see all responses)
+DROP POLICY IF EXISTS "form_responses_access" ON form_responses;
+CREATE POLICY "form_responses_access" ON form_responses
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM forms
+      WHERE forms.id = form_responses.form_id
+      AND (forms.created_by = auth.uid() OR user_role() IN ('founder', 'intern'))
+    )
+  );
+
+-- Form Sessions Policies (form collaborators)
+DROP POLICY IF EXISTS "form_sessions_access" ON form_sessions;
+CREATE POLICY "form_sessions_access" ON form_sessions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM forms
+      WHERE forms.id = form_sessions.form_id
+      AND (forms.created_by = auth.uid() OR user_role() IN ('founder', 'intern'))
+    )
+  );
+
+-- Indexes for AI tables
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_user ON ai_conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_session ON ai_conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ai_actions_user ON ai_actions(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_actions_status ON ai_actions(status);
+CREATE INDEX IF NOT EXISTS idx_ai_actions_created ON ai_actions(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ai_learning_user ON ai_learning(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_learning_category ON ai_learning(category);
+
+CREATE INDEX IF NOT EXISTS idx_ai_workflows_creator ON ai_workflows(created_by);
+CREATE INDEX IF NOT EXISTS idx_ai_workflows_status ON ai_workflows(status);
+
+CREATE INDEX IF NOT EXISTS idx_forms_creator ON forms(created_by);
+CREATE INDEX IF NOT EXISTS idx_forms_status ON forms(status);
+
+CREATE INDEX IF NOT EXISTS idx_form_columns_form ON form_columns(form_id);
+CREATE INDEX IF NOT EXISTS idx_form_columns_index ON form_columns(column_index);
+
+CREATE INDEX IF NOT EXISTS idx_form_responses_form ON form_responses(form_id);
+CREATE INDEX IF NOT EXISTS idx_form_responses_status ON form_responses(status);
+CREATE INDEX IF NOT EXISTS idx_form_responses_submitted ON form_responses(submitted_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_form_sessions_form ON form_sessions(form_id);
+CREATE INDEX IF NOT EXISTS idx_form_sessions_user ON form_sessions(user_id);
+
+-- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 

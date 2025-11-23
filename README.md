@@ -1,79 +1,154 @@
-# 🌱 Green Silicon Valley - 100% Codeless Platform
+# 🌱 Green Silicon Valley - Professional Nonprofit Platform
 
-**A professional, full-stack nonprofit platform with complete visual management - zero code required!**
+**A complete, AI-powered nonprofit platform with advanced administrative features and intelligent automation.**
 
 ---
 
 ## ✨ **What Makes This Special**
 
-### **100% Codeless Management**
-- ✅ Visual website builder (drag-and-drop)
-- ✅ Complete user management system
-- ✅ Granular permissions control (30+ permissions)
-- ✅ Content editor with rich text
-- ✅ Media manager with drag-and-drop uploads
-- ✅ Blog management with SEO
-- ✅ Data tables with inline editing
-- ✅ **Everything manageable from dashboards!**
+### **🤖 AI Agent Mode**
+- ✅ **Conversational AI Assistant** - Natural language commands for all admin tasks
+- ✅ **Intelligent Form Builder** - AI generates forms from plain English descriptions
+- ✅ **Smart Analytics** - AI-powered insights and automated reporting
+- ✅ **Workflow Automation** - AI creates and manages automated processes
+- ✅ **Real-time Collaboration** - Multi-user editing with conflict resolution
 
-### **Professional Design**
-- ✅ Modern, minimalist, credible design
-- ✅ Professional color palette (grounded green + warm secondary)
-- ✅ Responsive across all devices
-- ✅ Smooth animations and transitions
-- ✅ Accessibility-first approach
+### **🏗️ Complete Administrative Suite**
+- ✅ **Visual Website Builder** - Drag-and-drop content management
+- ✅ **Advanced User Management** - 30+ granular permissions across 5 roles
+- ✅ **Content Management System** - Rich text editing, media library, blog platform
+- ✅ **Data Tables & Analytics** - Inline editing, export, real-time dashboards
+- ✅ **Email & Communication** - Templates, campaigns, notifications
+- ✅ **Financial Tracking** - Donations, expenses, budget management
 
-### **Complete Feature Set**
-- ✅ User authentication (Google Sign-In + Magic Link)
-- ✅ Role-based access control (Founder, Intern, Volunteer, Teacher, Partner)
-- ✅ Volunteer hours tracking and approval
-- ✅ Presentation scheduling
-- ✅ Internal bulletin board
-- ✅ Public blog with RSS feed
-- ✅ Analytics dashboard
-- ✅ Real-time notifications
+### **📊 Professional Features**
+- ✅ **Google Authentication** - Secure OAuth integration
+- ✅ **Role-Based Access Control** - Founder, Intern, Volunteer, Teacher, Partner roles
+- ✅ **Real-time Notifications** - In-app and email notifications
+- ✅ **Mobile-Responsive Design** - Professional UI across all devices
+- ✅ **Data Export & Backup** - CSV, PDF, automated backups
+- ✅ **Audit Logging** - Complete activity tracking
 
 ---
 
-## 🚀 **Quick Start**
+## 🚀 **Complete Setup Guide**
 
-### **1. Clone & Install**
+### **Option 1: Automated Setup (Recommended)**
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd green-silicon-valley
+
+# Run the complete automated setup
+npm run setup
+```
+
+That's it! The setup script will handle everything automatically.
+
+### **Option 2: Manual Setup**
+
+#### **Step 1: Clone & Install**
 ```bash
 git clone <your-repo-url>
 cd green-silicon-valley
 npm install
 ```
 
-### **2. Set Up Database**
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Open SQL Editor
-3. Copy contents of `COMPLETE_DATABASE_SETUP.sql`
-4. Paste and run
-5. Verify you see "✅ Database setup complete!"
+#### **Step 2: Create Supabase Project**
+1. Go to [Supabase Dashboard](https://supabase.com)
+2. Click "New Project"
+3. Choose your organization and region
+4. Set project name (e.g., "Green Silicon Valley")
+5. Set database password (save this!)
+6. Wait for project creation (2-3 minutes)
 
-### **3. Configure Environment**
+#### **Step 3: Configure Environment**
 ```bash
-# Copy example env file
-cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+# Get these from: Settings > API in your Supabase dashboard
 
-# Add your Supabase credentials:
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
-### **4. Start Development Server**
+#### **Step 4: Set Up Database**
+```bash
+# Run database migrations and seeding
+npm run db:migrate
+npm run db:init
+npm run create-content
+npm run set-founder
+```
+
+#### **Step 5: Configure Google OAuth**
+1. In Supabase Dashboard, go to **Authentication > Providers**
+2. Enable **Google** provider
+3. Add redirect URL: `http://localhost:3000/auth/callback`
+4. Get Google OAuth credentials from [Google Cloud Console](https://console.cloud.google.com)
+5. Add them to Supabase Google provider settings
+
+#### **Step 6: Start Development Server**
 ```bash
 npm run dev
 ```
 
 Visit: `http://localhost:3000`
 
-### **5. Log In as Founder**
-1. Go to `/login`
-2. Sign in with Google using `ayushg.2024@gmail.com`
-3. You'll be redirected to founder dashboard
-4. Access all admin tools!
+#### **Step 7: Verify Setup**
+```bash
+npm run verify
+```
+
+---
+
+## 🔍 **Setup Verification**
+
+Run this command to verify your setup is complete:
+
+```bash
+npm run verify
+```
+
+This will check:
+- ✅ Environment variables configured
+- ✅ Database tables created
+- ✅ Sample data seeded
+- ✅ Authentication configured
+- ✅ Key components present
+
+---
+
+## 🤖 **AI Agent Mode - Your Intelligent Assistant**
+
+Once logged in, activate AI Agent Mode to access conversational AI administration:
+
+### **🎯 What AI Agent Can Do**
+- **"Create a volunteer registration form for our climate program"** - AI generates complete forms
+- **"Show me analytics for this month's volunteer engagement"** - AI analyzes data and creates reports
+- **"Set up weekly progress reports for all teams"** - AI creates automated workflows
+- **"Analyze volunteer application responses"** - AI provides insights and recommendations
+- **"Generate a summary report of our impact this quarter"** - AI compiles comprehensive reports
+
+### **🚀 Getting Started with AI Agent**
+1. Log in as Founder or Intern
+2. Look for the **AI Agent** button (floating chat bubble)
+3. Click to open the conversational interface
+4. Try commands like:
+   - "Create a new volunteer form"
+   - "Show me today's analytics"
+   - "Set up automated notifications"
+
+### **✨ AI Features Include**
+- **Natural Language Processing** - Understands plain English commands
+- **Context Awareness** - Learns your preferences and patterns
+- **Multi-step Actions** - Handles complex workflows automatically
+- **Approval Workflows** - Requires confirmation for sensitive actions
+- **Data Analysis** - Provides insights and recommendations
+- **Form Generation** - Creates Google Sheets-like forms from descriptions
+- **Workflow Automation** - Sets up recurring tasks and notifications
 
 ---
 

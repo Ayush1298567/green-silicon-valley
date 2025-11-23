@@ -13,12 +13,13 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const supabase = getServerComponentClient();
 
-  // Fetch dynamic stats with error handling
+  // Fetch dynamic stats with comprehensive error handling
   let schoolsCount = 0;
   let volunteersCount = 0;
   let totalHours = 0;
   let presentationsCount = 0;
   let recentPosts: any[] = [];
+  let hasData = true;
 
   try {
     const [
@@ -46,11 +47,15 @@ export default async function HomePage() {
       .eq("published", true)
       .order("created_at", { ascending: false })
       .limit(3);
-    
+
     recentPosts = blogResult.data || [];
+
+    // Check if we have meaningful data
+    hasData = (schoolsCount > 0 || volunteersCount > 0 || presentationsCount > 0);
   } catch (error) {
-    // Silently handle errors - show page with default values
+    // Log error but continue with defaults
     console.error("Error fetching homepage data:", error);
+    hasData = false;
   }
 
   return (
