@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { trackUserActivity } from "@/lib/auth/routing";
+import { emailService } from "@/lib/email/email-service";
 
 // Public newsletter signup endpoint
 export async function POST(req: Request) {
@@ -76,6 +77,17 @@ export async function POST(req: Request) {
     referrer: referrer,
     metadata: { subscriber_id: data.id },
   });
+
+  // Send confirmation email
+  try {
+    await emailService.sendNewsletterConfirmation({
+      email: email,
+      name: name || undefined
+    });
+  } catch (emailError) {
+    console.error('Failed to send newsletter confirmation email:', emailError);
+    // Don't fail the subscription if email fails
+  }
 
   return NextResponse.json({ ok: true, message: "Successfully subscribed", subscriber: data });
 }

@@ -1135,6 +1135,438 @@ CREATE INDEX IF NOT EXISTS idx_form_sessions_form ON form_sessions(form_id);
 CREATE INDEX IF NOT EXISTS idx_form_sessions_user ON form_sessions(user_id);
 
 -- ============================================================================
+-- COMPREHENSIVE ENHANCEMENTS - Public Pages & Features
+-- ============================================================================
+
+-- Events and deadlines management
+CREATE TABLE IF NOT EXISTS events_deadlines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  type text NOT NULL CHECK (type IN ('deadline', 'recruitment', 'presentation', 'training', 'meeting', 'other')),
+  description text NOT NULL,
+  date timestamptz NOT NULL,
+  end_date timestamptz,
+  location text,
+  is_virtual boolean DEFAULT false,
+  capacity integer,
+  registered_count integer DEFAULT 0,
+  is_editable boolean DEFAULT true,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Leadership profiles
+CREATE TABLE IF NOT EXISTS leadership_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  title text NOT NULL,
+  department text NOT NULL,
+  bio text NOT NULL,
+  photo_url text,
+  email text,
+  linkedin_url text,
+  twitter_url text,
+  website_url text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- FAQ items
+CREATE TABLE IF NOT EXISTS faq_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  question text NOT NULL,
+  answer text NOT NULL,
+  category text NOT NULL CHECK (category IN ('volunteers', 'teachers', 'parents', 'general')),
+  order_index integer DEFAULT 0,
+  is_published boolean DEFAULT true,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Extended content sections for dynamic pages
+CREATE TABLE IF NOT EXISTS content_sections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key text NOT NULL UNIQUE,
+  title text NOT NULL,
+  content text,
+  page text NOT NULL, -- 'how-it-works', 'start-here', 'faq', 'leadership', 'events', etc.
+  order_index integer DEFAULT 0,
+  is_published boolean DEFAULT true,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Open teams for volunteer recruitment
+CREATE TABLE IF NOT EXISTS team_openings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id uuid REFERENCES volunteers(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'filled')),
+  max_members integer DEFAULT 4,
+  current_members integer DEFAULT 0,
+  location text,
+  description text,
+  requirements text,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Volunteer team join requests
+CREATE TABLE IF NOT EXISTS team_join_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  volunteer_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  team_id uuid REFERENCES volunteers(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'admin_approved', 'admin_rejected', 'team_accepted', 'team_declined', 'accepted', 'declined')),
+  admin_reviewed_at timestamptz,
+  admin_reviewer uuid REFERENCES users(id),
+  team_response text,
+  team_responded_at timestamptz,
+  team_responder uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Volunteer impact tracking
+CREATE TABLE IF NOT EXISTS volunteer_impact (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  volunteer_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  metric_type text NOT NULL CHECK (metric_type IN ('presentations', 'students_reached', 'hours_logged', 'feedback_score')),
+  value numeric NOT NULL,
+  date_recorded date NOT NULL,
+  presentation_id uuid REFERENCES presentations(id),
+  created_at timestamptz DEFAULT now()
+);
+
+-- Example slides and activities
+CREATE TABLE IF NOT EXISTS volunteer_examples (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  type text NOT NULL CHECK (type IN ('slides', 'activity', 'video', 'worksheet')),
+  file_url text NOT NULL,
+  description text,
+  is_featured boolean DEFAULT false,
+  grade_levels text[], -- array of applicable grade levels
+  topics text[], -- array of environmental topics covered
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Volunteer readiness checklists
+CREATE TABLE IF NOT EXISTS volunteer_readiness_checklist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  volunteer_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  team_id uuid REFERENCES volunteers(id) ON DELETE CASCADE,
+  checklist_items jsonb NOT NULL DEFAULT '[]',
+  completed_items jsonb NOT NULL DEFAULT '[]',
+  is_complete boolean DEFAULT false,
+  completed_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Unique constraint: one checklist per volunteer-team combination
+CREATE UNIQUE INDEX IF NOT EXISTS volunteer_readiness_checklist_unique 
+ON volunteer_readiness_checklist(volunteer_id, team_id);
+
+-- Teacher informational calls
+CREATE TABLE IF NOT EXISTS teacher_informational_calls (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  school_name text,
+  preferred_time text,
+  notes text,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'scheduled', 'completed', 'cancelled')),
+  assigned_to uuid REFERENCES users(id),
+  scheduled_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- School locations for map visualization
+CREATE TABLE IF NOT EXISTS school_locations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid REFERENCES schools(id) ON DELETE CASCADE,
+  latitude numeric NOT NULL,
+  longitude numeric NOT NULL,
+  address text,
+  city text,
+  state text DEFAULT 'CA',
+  zip_code text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern departments and roles
+CREATE TABLE IF NOT EXISTS intern_departments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  description text NOT NULL,
+  responsibilities jsonb NOT NULL DEFAULT '[]',
+  requirements jsonb NOT NULL DEFAULT '[]',
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern project showcase
+CREATE TABLE IF NOT EXISTS intern_projects_showcase (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  department text NOT NULL,
+  description text NOT NULL,
+  images jsonb DEFAULT '[]',
+  outcomes text,
+  completed_date date,
+  featured boolean DEFAULT false,
+  created_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern blog posts
+CREATE TABLE IF NOT EXISTS intern_blog_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text NOT NULL,
+  author_name text NOT NULL,
+  author_id uuid REFERENCES users(id),
+  department text,
+  is_director_note boolean DEFAULT false,
+  published_at timestamptz,
+  is_published boolean DEFAULT false,
+  tags text[],
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern onboarding checklists
+CREATE TABLE IF NOT EXISTS intern_onboarding_checklist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  intern_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  checklist_items jsonb NOT NULL DEFAULT '[]',
+  completed_items jsonb NOT NULL DEFAULT '[]',
+  is_complete boolean DEFAULT false,
+  started_at timestamptz DEFAULT now(),
+  completed_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Partner inquiries
+CREATE TABLE IF NOT EXISTS partner_inquiries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_name text NOT NULL,
+  contact_name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  partnership_type text NOT NULL CHECK (partnership_type IN ('corporate', 'nonprofit', 'educational', 'community', 'other')),
+  message text NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'in_discussion', 'partnered', 'declined')),
+  assigned_to uuid REFERENCES users(id),
+  responded_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Current partners
+CREATE TABLE IF NOT EXISTS partners (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  logo_url text,
+  website text,
+  partnership_type text NOT NULL,
+  description text,
+  is_featured boolean DEFAULT false,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- School sponsorships
+CREATE TABLE IF NOT EXISTS school_sponsorships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid REFERENCES schools(id) ON DELETE CASCADE,
+  sponsor_name text NOT NULL,
+  sponsor_email text,
+  amount numeric NOT NULL,
+  duration_months integer,
+  purpose text,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+  start_date date NOT NULL,
+  end_date date,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Grant transparency
+CREATE TABLE IF NOT EXISTS grant_transparency (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  grant_name text NOT NULL,
+  amount numeric NOT NULL,
+  funding_source text NOT NULL,
+  received_date date NOT NULL,
+  purpose text NOT NULL,
+  use_of_funds jsonb NOT NULL DEFAULT '{}',
+  impact_summary text,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'terminated')),
+  reporting_deadlines jsonb DEFAULT '[]',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Donation categories for use-of-funds breakdown
+CREATE TABLE IF NOT EXISTS donation_categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_name text NOT NULL UNIQUE,
+  percentage numeric NOT NULL CHECK (percentage >= 0 AND percentage <= 100),
+  description text NOT NULL,
+  is_active boolean DEFAULT true,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Enhanced testimonials with verification
+CREATE TABLE IF NOT EXISTS enhanced_testimonials (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_name text,
+  school_name text,
+  teacher_name text,
+  grade_level text,
+  content text NOT NULL,
+  rating integer CHECK (rating >= 1 AND rating <= 5),
+  photo_url text,
+  is_verified boolean DEFAULT false,
+  testimonial_type text NOT NULL DEFAULT 'student' CHECK (testimonial_type IN ('student', 'teacher', 'parent', 'volunteer')),
+  featured boolean DEFAULT false,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Presentation videos for credibility
+CREATE TABLE IF NOT EXISTS presentation_videos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  presentation_id uuid REFERENCES presentations(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  video_url text NOT NULL,
+  duration_seconds integer,
+  thumbnail_url text,
+  description text,
+  is_featured boolean DEFAULT false,
+  view_count integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Downloadable resources
+CREATE TABLE IF NOT EXISTS downloadable_resources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  type text NOT NULL CHECK (type IN ('flyer', 'brochure', 'curriculum', 'presentation', 'worksheet', 'other')),
+  file_url text NOT NULL,
+  description text,
+  category text NOT NULL,
+  file_size_bytes integer,
+  download_count integer DEFAULT 0,
+  is_featured boolean DEFAULT false,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Row Level Security for new tables
+ALTER TABLE events_deadlines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leadership_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE faq_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_openings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_join_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volunteer_impact ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volunteer_examples ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volunteer_readiness_checklist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_informational_calls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE school_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intern_departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intern_projects_showcase ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intern_blog_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intern_onboarding_checklist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE partner_inquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE school_sponsorships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE grant_transparency ENABLE ROW LEVEL SECURITY;
+ALTER TABLE donation_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enhanced_testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE presentation_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE downloadable_resources ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for new tables
+DROP POLICY IF EXISTS "events_deadlines_access" ON events_deadlines;
+CREATE POLICY "events_deadlines_access" ON events_deadlines
+  FOR ALL USING (true); -- Public read access for events
+
+DROP POLICY IF EXISTS "leadership_profiles_access" ON leadership_profiles;
+CREATE POLICY "leadership_profiles_access" ON leadership_profiles
+  FOR ALL USING (true); -- Public read access for leadership profiles
+
+DROP POLICY IF EXISTS "faq_items_access" ON faq_items;
+CREATE POLICY "faq_items_access" ON faq_items
+  FOR ALL USING (is_published = true); -- Public read access for published FAQs
+
+DROP POLICY IF EXISTS "content_sections_access" ON content_sections;
+CREATE POLICY "content_sections_access" ON content_sections
+  FOR ALL USING (is_published = true); -- Public read access for published content
+
+DROP POLICY IF EXISTS "team_openings_access" ON team_openings;
+CREATE POLICY "team_openings_access" ON team_openings
+  FOR ALL USING (status = 'open'); -- Public read access for open teams
+
+DROP POLICY IF EXISTS "volunteer_examples_access" ON volunteer_examples;
+CREATE POLICY "volunteer_examples_access" ON volunteer_examples
+  FOR ALL USING (true); -- Public read access for examples
+
+DROP POLICY IF EXISTS "partners_access" ON partners;
+CREATE POLICY "partners_access" ON partners
+  FOR ALL USING (is_active = true); -- Public read access for active partners
+
+DROP POLICY IF EXISTS "downloadable_resources_access" ON downloadable_resources;
+CREATE POLICY "downloadable_resources_access" ON downloadable_resources
+  FOR ALL USING (true); -- Public read access for resources
+
+DROP POLICY IF EXISTS "enhanced_testimonials_access" ON enhanced_testimonials;
+CREATE POLICY "enhanced_testimonials_access" ON enhanced_testimonials
+  FOR ALL USING (true); -- Public read access for testimonials
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_events_deadlines_date ON events_deadlines(date);
+CREATE INDEX IF NOT EXISTS idx_events_deadlines_type ON events_deadlines(type);
+CREATE INDEX IF NOT EXISTS idx_leadership_profiles_department ON leadership_profiles(department);
+CREATE INDEX IF NOT EXISTS idx_leadership_profiles_order ON leadership_profiles(order_index);
+CREATE INDEX IF NOT EXISTS idx_faq_items_category ON faq_items(category);
+CREATE INDEX IF NOT EXISTS idx_faq_items_order ON faq_items(order_index);
+CREATE INDEX IF NOT EXISTS idx_content_sections_page ON content_sections(page);
+CREATE INDEX IF NOT EXISTS idx_content_sections_key ON content_sections(key);
+CREATE INDEX IF NOT EXISTS idx_team_join_requests_volunteer ON team_join_requests(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_team_join_requests_team ON team_join_requests(team_id);
+CREATE INDEX IF NOT EXISTS idx_volunteer_impact_volunteer ON volunteer_impact(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_volunteer_examples_featured ON volunteer_examples(is_featured);
+CREATE INDEX IF NOT EXISTS idx_school_locations_school ON school_locations(school_id);
+CREATE INDEX IF NOT EXISTS idx_intern_blog_posts_published ON intern_blog_posts(is_published, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_partners_featured ON partners(is_featured);
+CREATE INDEX IF NOT EXISTS idx_downloadable_resources_category ON downloadable_resources(category);
+
+-- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
@@ -2101,4 +2533,1620 @@ BEGIN
   RAISE NOTICE '';
   RAISE NOTICE '🚀 Platform is now fully self-contained and enterprise-ready!';
 END $$;
+
+-- =========================================
+-- INTERN PROGRAM ENHANCEMENTS
+-- =========================================
+
+-- Intern departments table
+CREATE TABLE IF NOT EXISTS intern_departments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  description text NOT NULL,
+  responsibilities jsonb DEFAULT '[]'::jsonb,
+  requirements jsonb DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern projects showcase table
+CREATE TABLE IF NOT EXISTS intern_projects_showcase (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  department text NOT NULL,
+  description text NOT NULL,
+  outcomes jsonb DEFAULT '[]'::jsonb,
+  images jsonb DEFAULT '[]'::jsonb,
+  completed_date date NOT NULL,
+  featured boolean DEFAULT false,
+  impact_summary text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern projects contributors junction table
+CREATE TABLE IF NOT EXISTS intern_projects_contributors (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid REFERENCES intern_projects_showcase(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  name text, -- Store name separately for legacy data
+  created_at timestamptz DEFAULT now()
+);
+
+-- Intern blog posts table
+CREATE TABLE IF NOT EXISTS intern_blog_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text NOT NULL,
+  excerpt text,
+  author_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  department text NOT NULL DEFAULT 'General',
+  is_director_note boolean DEFAULT false,
+  tags jsonb DEFAULT '[]'::jsonb,
+  read_time integer DEFAULT 5,
+  views integer DEFAULT 0,
+  likes integer DEFAULT 0,
+  is_published boolean DEFAULT false,
+  published_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Intern onboarding checklist table
+CREATE TABLE IF NOT EXISTS intern_onboarding_checklist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  intern_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  item_id text NOT NULL, -- Unique identifier for checklist item
+  title text NOT NULL,
+  description text NOT NULL,
+  category text NOT NULL CHECK (category IN ('administrative', 'training', 'department', 'orientation')),
+  estimated_time text,
+  required boolean DEFAULT false,
+  completed boolean DEFAULT false,
+  order_index integer NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(intern_id, item_id)
+);
+
+-- RLS Policies for intern tables
+DROP POLICY IF EXISTS "intern_departments_access" ON intern_departments;
+CREATE POLICY "intern_departments_access" ON intern_departments
+  FOR ALL USING (true); -- Public read access for departments
+
+DROP POLICY IF EXISTS "intern_projects_showcase_access" ON intern_projects_showcase;
+CREATE POLICY "intern_projects_showcase_access" ON intern_projects_showcase
+  FOR ALL USING (true); -- Public read access for projects
+
+DROP POLICY IF EXISTS "intern_projects_contributors_access" ON intern_projects_contributors;
+CREATE POLICY "intern_projects_contributors_access" ON intern_projects_contributors
+  FOR ALL USING (true); -- Public read access for contributors
+
+DROP POLICY IF EXISTS "intern_blog_posts_access" ON intern_blog_posts;
+CREATE POLICY "intern_blog_posts_access" ON intern_blog_posts
+  FOR ALL USING (
+    is_published = true OR
+    auth.uid() = author_id OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  ); -- Published posts public, unpublished only for author or admin
+
+DROP POLICY IF EXISTS "intern_blog_posts_insert" ON intern_blog_posts;
+CREATE POLICY "intern_blog_posts_insert" ON intern_blog_posts
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND (
+      auth.uid() = author_id OR
+      EXISTS (
+        SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "intern_blog_posts_update" ON intern_blog_posts;
+CREATE POLICY "intern_blog_posts_update" ON intern_blog_posts
+  FOR UPDATE USING (
+    auth.uid() = author_id OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "intern_onboarding_checklist_access" ON intern_onboarding_checklist;
+CREATE POLICY "intern_onboarding_checklist_access" ON intern_onboarding_checklist
+  FOR ALL USING (
+    auth.uid() = intern_id OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  ); -- Users can only see their own checklist, admins can see all
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_intern_projects_featured ON intern_projects_showcase(featured);
+CREATE INDEX IF NOT EXISTS idx_intern_projects_department ON intern_projects_showcase(department);
+CREATE INDEX IF NOT EXISTS idx_intern_projects_completed_date ON intern_projects_showcase(completed_date DESC);
+CREATE INDEX IF NOT EXISTS idx_intern_blog_posts_published ON intern_blog_posts(is_published);
+CREATE INDEX IF NOT EXISTS idx_intern_blog_posts_department ON intern_blog_posts(department);
+CREATE INDEX IF NOT EXISTS idx_intern_blog_posts_author ON intern_blog_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_intern_blog_posts_published_at ON intern_blog_posts(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_intern_onboarding_intern ON intern_onboarding_checklist(intern_id);
+CREATE INDEX IF NOT EXISTS idx_intern_onboarding_completed ON intern_onboarding_checklist(completed);
+
+-- =========================================
+-- PARTNERSHIP AND COMMUNITY FEATURES
+-- =========================================
+
+-- Partner inquiries table
+CREATE TABLE IF NOT EXISTS partner_inquiries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_name text NOT NULL,
+  contact_name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  partnership_type text NOT NULL,
+  website text,
+  message text NOT NULL,
+  hear_about_us text,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'approved', 'declined')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Partners table
+CREATE TABLE IF NOT EXISTS partners (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  logo_url text,
+  website text,
+  partnership_type text NOT NULL,
+  description text,
+  is_featured boolean DEFAULT false,
+  partnership_start_date date,
+  impact_summary text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- School sponsorships table
+CREATE TABLE IF NOT EXISTS school_sponsorships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid REFERENCES schools(id) ON DELETE CASCADE,
+  sponsor_name text NOT NULL,
+  sponsor_email text NOT NULL,
+  amount decimal(10,2) NOT NULL,
+  sponsorship_level text NOT NULL,
+  message text,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Chapters table
+CREATE TABLE IF NOT EXISTS chapters (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  location text NOT NULL,
+  latitude decimal(10,8),
+  longitude decimal(11,8),
+  status text DEFAULT 'planned' CHECK (status IN ('planned', 'forming', 'active')),
+  founded_date date,
+  member_count integer DEFAULT 0,
+  schools_served integer DEFAULT 0,
+  presentations_delivered integer DEFAULT 0,
+  growth_metrics jsonb DEFAULT '{"monthlyGrowth": 0, "schoolsAdded": 0, "presentationsCompleted": 0}'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- RLS Policies for partnership tables
+DROP POLICY IF EXISTS "partner_inquiries_access" ON partner_inquiries;
+CREATE POLICY "partner_inquiries_access" ON partner_inquiries
+  FOR ALL USING (
+    auth.uid() IS NULL OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  ); -- Public insert, admin read
+
+DROP POLICY IF EXISTS "partners_access" ON partners;
+CREATE POLICY "partners_access" ON partners
+  FOR ALL USING (true); -- Public read access
+
+DROP POLICY IF EXISTS "partners_insert" ON partners;
+CREATE POLICY "partners_insert" ON partners
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "partners_update" ON partners;
+CREATE POLICY "partners_update" ON partners
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "school_sponsorships_access" ON school_sponsorships;
+CREATE POLICY "school_sponsorships_access" ON school_sponsorships
+  FOR ALL USING (
+    auth.uid() IS NULL OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  ); -- Public insert, admin read
+
+DROP POLICY IF EXISTS "chapters_access" ON chapters;
+CREATE POLICY "chapters_access" ON chapters
+  FOR ALL USING (true); -- Public read access
+
+DROP POLICY IF EXISTS "chapters_insert" ON chapters;
+CREATE POLICY "chapters_insert" ON chapters
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "chapters_update" ON chapters;
+CREATE POLICY "chapters_update" ON chapters
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- =========================================
+-- FUNDRAISING AND GRANTS FEATURES
+-- =========================================
+
+-- Grants transparency table
+CREATE TABLE IF NOT EXISTS grants_transparency (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  funder text NOT NULL,
+  amount decimal(10,2) NOT NULL,
+  received_date date NOT NULL,
+  status text DEFAULT 'active' CHECK (status IN ('active', 'completed', 'pending')),
+  category text NOT NULL,
+  description text NOT NULL,
+  objectives jsonb DEFAULT '[]'::jsonb,
+  outcomes jsonb DEFAULT '[]'::jsonb,
+  use_of_funds jsonb DEFAULT '[]'::jsonb,
+  impact text,
+  report_url text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- RLS Policies for fundraising tables
+DROP POLICY IF EXISTS "grants_transparency_access" ON grants_transparency;
+CREATE POLICY "grants_transparency_access" ON grants_transparency
+  FOR ALL USING (true); -- Public read access for transparency
+
+DROP POLICY IF EXISTS "grants_transparency_insert" ON grants_transparency;
+CREATE POLICY "grants_transparency_insert" ON grants_transparency
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "grants_transparency_update" ON grants_transparency;
+CREATE POLICY "grants_transparency_update" ON grants_transparency
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_partner_inquiries_status ON partner_inquiries(status);
+CREATE INDEX IF NOT EXISTS idx_partner_inquiries_created ON partner_inquiries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_partners_featured ON partners(is_featured);
+CREATE INDEX IF NOT EXISTS idx_partners_type ON partners(partnership_type);
+CREATE INDEX IF NOT EXISTS idx_school_sponsorships_school ON school_sponsorships(school_id);
+CREATE INDEX IF NOT EXISTS idx_school_sponsorships_status ON school_sponsorships(status);
+CREATE INDEX IF NOT EXISTS idx_chapters_status ON chapters(status);
+CREATE INDEX IF NOT EXISTS idx_chapters_location ON chapters(location);
+CREATE INDEX IF NOT EXISTS idx_grants_status ON grants_transparency(status);
+CREATE INDEX IF NOT EXISTS idx_grants_received_date ON grants_transparency(received_date DESC);
+CREATE INDEX IF NOT EXISTS idx_grants_category ON grants_transparency(category);
+
+-- =========================================
+-- TECHNICAL IMPROVEMENTS
+-- =========================================
+
+-- Presentation templates table for version control
+CREATE TABLE IF NOT EXISTS presentation_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  version text NOT NULL,
+  description text,
+  file_url text NOT NULL,
+  file_size integer,
+  is_current boolean DEFAULT false,
+  uploaded_by uuid REFERENCES users(id),
+  changelog text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(name, version)
+);
+
+-- Volunteer files table for file hub
+CREATE TABLE IF NOT EXISTS volunteer_files (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  file_url text NOT NULL,
+  file_size integer,
+  file_type text,
+  category text DEFAULT 'general',
+  uploaded_by uuid REFERENCES users(id),
+  team_id uuid, -- Could reference teams table when implemented
+  presentation_id uuid, -- Could reference presentations table when implemented
+  description text,
+  is_public boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- RLS Policies for technical improvements tables
+DROP POLICY IF EXISTS "presentation_templates_access" ON presentation_templates;
+CREATE POLICY "presentation_templates_access" ON presentation_templates
+  FOR ALL USING (true); -- Public read access for templates
+
+DROP POLICY IF EXISTS "presentation_templates_insert" ON presentation_templates;
+CREATE POLICY "presentation_templates_insert" ON presentation_templates
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "volunteer_files_access" ON volunteer_files;
+CREATE POLICY "volunteer_files_access" ON volunteer_files
+  FOR ALL USING (
+    auth.uid() = uploaded_by OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    ) OR
+    is_public = true
+  ); -- Users can see their own files, admins can see all, public files are visible to all
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_presentation_templates_current ON presentation_templates(is_current);
+CREATE INDEX IF NOT EXISTS idx_presentation_templates_name ON presentation_templates(name);
+CREATE INDEX IF NOT EXISTS idx_presentation_templates_version ON presentation_templates(version DESC);
+CREATE INDEX IF NOT EXISTS idx_volunteer_files_uploaded_by ON volunteer_files(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_volunteer_files_category ON volunteer_files(category);
+CREATE INDEX IF NOT EXISTS idx_volunteer_files_team ON volunteer_files(team_id);
+CREATE INDEX IF NOT EXISTS idx_volunteer_files_presentation ON volunteer_files(presentation_id);
+
+-- =========================================
+-- AUTOMATION FEATURES
+-- =========================================
+
+-- Onboarding packets table
+CREATE TABLE IF NOT EXISTS onboarding_packets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  volunteer_id uuid REFERENCES users(id),
+  packet_url text,
+  generated_at timestamptz,
+  includes jsonb,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'generated', 'sent')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Generated tasks table for automation
+CREATE TABLE IF NOT EXISTS generated_tasks (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  description text NOT NULL,
+  type text NOT NULL CHECK (type IN ('presentation', 'followup', 'coordination', 'administrative')),
+  priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  assigned_to uuid REFERENCES users(id),
+  due_date timestamptz,
+  related_entity_id text NOT NULL,
+  related_entity_type text NOT NULL,
+  metadata jsonb,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Department alerts table for cross-department coordination
+CREATE TABLE IF NOT EXISTS department_alerts (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  message text NOT NULL,
+  priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  department text NOT NULL,
+  triggered_by uuid REFERENCES users(id),
+  related_entity_id text,
+  related_entity_type text,
+  action_required text,
+  deadline timestamptz,
+  status text DEFAULT 'active' CHECK (status IN ('active', 'acknowledged', 'resolved')),
+  acknowledged_at timestamptz,
+  acknowledged_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now()
+);
+
+-- Scheduled reminders table
+CREATE TABLE IF NOT EXISTS scheduled_reminders (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  message text NOT NULL,
+  recipient_id text NOT NULL, -- Can be user ID or email for non-registered users
+  recipient_type text DEFAULT 'volunteer' CHECK (recipient_type IN ('volunteer', 'teacher', 'intern', 'team')),
+  reminder_type text DEFAULT 'general' CHECK (reminder_type IN ('presentation', 'meeting', 'deadline', 'followup', 'training', 'general')),
+  scheduled_for timestamptz NOT NULL,
+  sent_at timestamptz,
+  status text DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'sent', 'cancelled')),
+  related_entity_id text,
+  related_entity_type text,
+  priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  metadata jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Weekly summaries table
+CREATE TABLE IF NOT EXISTS weekly_summaries (
+  id text PRIMARY KEY,
+  week_of timestamptz NOT NULL,
+  generated_at timestamptz NOT NULL,
+  sent_to uuid[] DEFAULT '{}',
+  sections jsonb NOT NULL,
+  key_highlights text[] DEFAULT '{}',
+  upcoming_priorities text[] DEFAULT '{}',
+  generated_by text DEFAULT 'automation',
+  created_at timestamptz DEFAULT now()
+);
+
+-- RLS Policies for automation tables
+DROP POLICY IF EXISTS "onboarding_packets_access" ON onboarding_packets;
+CREATE POLICY "onboarding_packets_access" ON onboarding_packets
+  FOR ALL USING (
+    auth.uid() = volunteer_id OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "generated_tasks_access" ON generated_tasks;
+CREATE POLICY "generated_tasks_access" ON generated_tasks
+  FOR ALL USING (
+    auth.uid() = assigned_to OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "department_alerts_access" ON department_alerts;
+CREATE POLICY "department_alerts_access" ON department_alerts
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    ) OR
+    department IN (
+      SELECT CASE
+        WHEN role IN ('admin', 'founder') THEN 'Operations'
+        WHEN role = 'intern' THEN 'Technology'
+        WHEN role = 'volunteer' THEN 'Volunteer Development'
+        WHEN role = 'teacher' THEN 'Outreach'
+        ELSE 'Operations'
+      END
+      FROM users WHERE id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "scheduled_reminders_access" ON scheduled_reminders;
+CREATE POLICY "scheduled_reminders_access" ON scheduled_reminders
+  FOR ALL USING (
+    recipient_id = auth.uid()::text OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "weekly_summaries_access" ON weekly_summaries;
+CREATE POLICY "weekly_summaries_access" ON weekly_summaries
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- Indexes for automation tables
+CREATE INDEX IF NOT EXISTS idx_onboarding_packets_volunteer ON onboarding_packets(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_onboarding_packets_status ON onboarding_packets(status);
+CREATE INDEX IF NOT EXISTS idx_generated_tasks_assigned_to ON generated_tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_generated_tasks_status ON generated_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_generated_tasks_due_date ON generated_tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_department_alerts_department ON department_alerts(department);
+CREATE INDEX IF NOT EXISTS idx_department_alerts_status ON department_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_recipient ON scheduled_reminders(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_scheduled_for ON scheduled_reminders(scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_status ON scheduled_reminders(status);
+CREATE INDEX IF NOT EXISTS idx_weekly_summaries_week_of ON weekly_summaries(week_of DESC);
+
+-- =========================================
+-- HIGH-IMPACT ADDITIONS (PHASE 9)
+-- =========================================
+
+-- Testimonials table for student stories and verification
+CREATE TABLE IF NOT EXISTS testimonials (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_name text NOT NULL,
+  student_age integer,
+  school_name text NOT NULL,
+  school_city text NOT NULL,
+  school_state text NOT NULL,
+  grade text NOT NULL,
+  testimonial text NOT NULL,
+  impact text,
+  volunteer_name text,
+  presentation_date date,
+  featured boolean DEFAULT false,
+  verified boolean DEFAULT false,
+  rating integer CHECK (rating >= 1 AND rating <= 5),
+  categories text[] DEFAULT '{}',
+  image_url text,
+  video_url text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Video gallery table for presentation clips
+CREATE TABLE IF NOT EXISTS video_gallery (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  thumbnail_url text,
+  video_url text NOT NULL,
+  duration integer NOT NULL, -- in seconds
+  student_name text,
+  school_name text,
+  presentation_date date,
+  category text DEFAULT 'general',
+  featured boolean DEFAULT false,
+  downloads integer DEFAULT 0,
+  views integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Downloadable resources table
+CREATE TABLE IF NOT EXISTS downloadable_resources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  file_url text NOT NULL,
+  file_type text NOT NULL,
+  file_size integer,
+  category text NOT NULL,
+  audience text DEFAULT 'general',
+  thumbnail_url text,
+  preview_url text,
+  downloads integer DEFAULT 0,
+  featured boolean DEFAULT false,
+  tags text[] DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Newsletter subscriptions table
+CREATE TABLE IF NOT EXISTS newsletter_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  name text,
+  source text DEFAULT 'website',
+  status text DEFAULT 'active' CHECK (status IN ('active', 'unsubscribed', 'bounced')),
+  subscribed_at timestamptz DEFAULT now(),
+  unsubscribed_at timestamptz,
+  tags text[] DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Urgent contacts table for immediate teacher support
+CREATE TABLE IF NOT EXISTS urgent_contacts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  school_name text NOT NULL,
+  urgency text DEFAULT 'medium' CHECK (urgency IN ('low', 'medium', 'high')),
+  subject text NOT NULL,
+  message text NOT NULL,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'acknowledged', 'resolved', 'closed')),
+  assigned_to uuid REFERENCES users(id),
+  response_time interval,
+  resolution_notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  acknowledged_at timestamptz,
+  resolved_at timestamptz
+);
+
+-- RLS Policies for high-impact additions tables
+DROP POLICY IF EXISTS "testimonials_access" ON testimonials;
+CREATE POLICY "testimonials_access" ON testimonials
+  FOR SELECT USING (true); -- Public read access for testimonials
+
+DROP POLICY IF EXISTS "testimonials_admin_modify" ON testimonials;
+CREATE POLICY "testimonials_admin_modify" ON testimonials
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "video_gallery_access" ON video_gallery;
+CREATE POLICY "video_gallery_access" ON video_gallery
+  FOR SELECT USING (true); -- Public read access for videos
+
+DROP POLICY IF EXISTS "video_gallery_admin_modify" ON video_gallery;
+CREATE POLICY "video_gallery_admin_modify" ON video_gallery
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "downloadable_resources_access" ON downloadable_resources;
+CREATE POLICY "downloadable_resources_access" ON downloadable_resources
+  FOR SELECT USING (true); -- Public read access for resources
+
+DROP POLICY IF EXISTS "downloadable_resources_admin_modify" ON downloadable_resources;
+CREATE POLICY "downloadable_resources_admin_modify" ON downloadable_resources
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "newsletter_subscriptions_insert" ON newsletter_subscriptions;
+CREATE POLICY "newsletter_subscriptions_insert" ON newsletter_subscriptions
+  FOR INSERT WITH CHECK (true); -- Public can subscribe
+
+DROP POLICY IF EXISTS "newsletter_subscriptions_admin_access" ON newsletter_subscriptions;
+CREATE POLICY "newsletter_subscriptions_admin_access" ON newsletter_subscriptions
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+DROP POLICY IF EXISTS "urgent_contacts_insert" ON urgent_contacts;
+CREATE POLICY "urgent_contacts_insert" ON urgent_contacts
+  FOR INSERT WITH CHECK (true); -- Public can submit urgent contacts
+
+DROP POLICY IF EXISTS "urgent_contacts_admin_access" ON urgent_contacts;
+CREATE POLICY "urgent_contacts_admin_access" ON urgent_contacts
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- Indexes for high-impact additions tables
+CREATE INDEX IF NOT EXISTS idx_testimonials_featured ON testimonials(featured);
+CREATE INDEX IF NOT EXISTS idx_testimonials_verified ON testimonials(verified);
+CREATE INDEX IF NOT EXISTS idx_testimonials_school ON testimonials(school_name);
+CREATE INDEX IF NOT EXISTS idx_testimonials_categories ON testimonials USING gin(categories);
+CREATE INDEX IF NOT EXISTS idx_video_gallery_featured ON video_gallery(featured);
+CREATE INDEX IF NOT EXISTS idx_video_gallery_category ON video_gallery(category);
+CREATE INDEX IF NOT EXISTS idx_downloadable_resources_category ON downloadable_resources(category);
+CREATE INDEX IF NOT EXISTS idx_downloadable_resources_audience ON downloadable_resources(audience);
+CREATE INDEX IF NOT EXISTS idx_downloadable_resources_featured ON downloadable_resources(featured);
+CREATE INDEX IF NOT EXISTS idx_downloadable_resources_tags ON downloadable_resources USING gin(tags);
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscriptions_email ON newsletter_subscriptions(email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscriptions_status ON newsletter_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_urgent_contacts_status ON urgent_contacts(status);
+CREATE INDEX IF NOT EXISTS idx_urgent_contacts_urgency ON urgent_contacts(urgency);
+CREATE INDEX IF NOT EXISTS idx_urgent_contacts_assigned_to ON urgent_contacts(assigned_to);
+
+-- ============================================================================
+-- PERMISSION REQUESTS SYSTEM
+-- ============================================================================
+
+-- Create permission_requests table
+CREATE TABLE IF NOT EXISTS permission_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  permission_type text NOT NULL,
+  resource_type text NOT NULL,
+  resource_id uuid,
+  requested_permissions jsonb NOT NULL DEFAULT '{}'::jsonb,
+  reason text NOT NULL,
+  justification text,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  review_notes text,
+  expires_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- RLS for permission_requests
+ALTER TABLE permission_requests ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own requests
+CREATE POLICY "Users can view their own permission requests" ON permission_requests
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Admins can view all requests
+CREATE POLICY "Admins can manage all permission requests" ON permission_requests
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin')
+    )
+  );
+
+-- Indexes for performance
+CREATE INDEX idx_permission_requests_user_id ON permission_requests(user_id);
+CREATE INDEX idx_permission_requests_status ON permission_requests(status);
+CREATE INDEX idx_permission_requests_created_at ON permission_requests(created_at);
+
+-- Insert sample testimonials
+INSERT INTO testimonials (student_name, student_age, school_name, school_city, school_state, grade, testimonial, impact, volunteer_name, presentation_date, featured, verified, rating, categories, created_at) VALUES
+('Emma Chen', 10, 'Lincoln Elementary School', 'Palo Alto', 'CA', '4th Grade', 'The environmental science presentation was amazing! I learned so much about climate change and what I can do to help our planet. Now I recycle everything and tell my friends to do the same!', 'Emma started a recycling club at her school and convinced her family to switch to reusable water bottles.', 'Sarah Johnson', '2024-01-15', true, true, 5, ARRAY['environment', 'climate-change', 'leadership', 'family-impact'], '2024-01-16T10:30:00Z'),
+('Marcus Rodriguez', 12, 'Oak Grove Middle School', 'Sunnyvale', 'CA', '7th Grade', 'I never thought science could be this fun! The hands-on experiments with solar power and wind energy were incredible. I want to be an environmental engineer when I grow up.', 'Marcus built a small wind turbine model at home and presented it to his class.', 'David Kim', '2024-01-20', true, true, 5, ARRAY['renewable-energy', 'hands-on', 'career-inspiration', 'engineering'], '2024-01-22T14:15:00Z'),
+('Aisha Patel', 9, 'Washington Elementary', 'Mountain View', 'CA', '3rd Grade', 'The volunteers showed us how plastic in the ocean hurts sea turtles and fish. Now I never use plastic straws and I pick up litter at the park!', 'Aisha organized a neighborhood clean-up event and convinced 15 families to reduce plastic use.', 'Maria Gonzalez', '2024-01-10', true, true, 5, ARRAY['ocean-pollution', 'community-action', 'plastic-reduction', 'animal-welfare'], '2024-01-12T09:45:00Z')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample video clips
+INSERT INTO video_gallery (title, description, thumbnail_url, video_url, duration, student_name, school_name, presentation_date, category, featured, created_at) VALUES
+('Emma''s Environmental Journey', 'Emma shares how the presentation inspired her to start recycling and help the planet', '/videos/thumbnails/emma-thumb.jpg', '/videos/emma-environment.mp4', 28, 'Emma Chen', 'Lincoln Elementary', '2024-01-15', 'inspiration', true, '2024-01-16T10:30:00Z'),
+('Marcus Builds Wind Turbine', 'Watch Marcus demonstrate his homemade wind turbine project', '/videos/thumbnails/marcus-thumb.jpg', '/videos/marcus-wind-turbine.mp4', 32, 'Marcus Rodriguez', 'Oak Grove Middle School', '2024-01-20', 'projects', true, '2024-01-22T14:15:00Z'),
+('Aisha''s Ocean Conservation', 'Aisha explains what she learned about plastic pollution and sea turtles', '/videos/thumbnails/aisha-thumb.jpg', '/videos/aisha-ocean.mp4', 25, 'Aisha Patel', 'Washington Elementary', '2024-01-10', 'conservation', true, '2024-01-12T09:45:00Z')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample downloadable resources
+INSERT INTO downloadable_resources (title, description, file_url, file_type, file_size, category, audience, downloads, featured, tags, created_at) VALUES
+('Green Silicon Valley Program Flyer', 'One-page overview of our environmental STEM education program for teachers and administrators', '/downloads/gsv-program-flyer.pdf', 'pdf', 245760, 'flyers', 'teachers', 1247, true, ARRAY['overview', 'program-info', 'schools', 'environmental-education'], '2024-01-01T00:00:00Z'),
+('Parent Information Brochure', 'Comprehensive guide for parents about our presentations and how to get involved', '/downloads/parent-brochure.pdf', 'pdf', 512000, 'brochures', 'parents', 892, true, ARRAY['parents', 'information', 'get-involved', 'support'], '2024-01-05T00:00:00Z'),
+('Environmental STEM Poster Set', 'Beautiful posters featuring environmental themes and STEM concepts for classroom decoration', '/downloads/poster-set.zip', 'zip', 15728640, 'posters', 'teachers', 634, true, ARRAY['classroom-decor', 'posters', 'environmental-themes', 'STEM'], '2024-01-10T00:00:00Z')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample presentation templates
+INSERT INTO presentation_templates (name, version, description, file_url, file_size, is_current, changelog) VALUES
+('Environmental STEM Presentation Template', '2.1', 'Current template with updated climate data and activities', '/templates/presentation-template-v2.1.pptx', 3145728, true, 'Updated climate data, added new interactive activities, improved visual design'),
+('Environmental STEM Presentation Template', '2.0', 'Previous version with legacy content', '/templates/presentation-template-v2.0.pptx', 2936012, false, 'Major content update, new activity modules, updated statistics'),
+('Activity Worksheets Template', '1.3', 'Updated worksheets with new environmental challenges', '/templates/worksheets-template-v1.3.docx', 524288, true, 'Added new environmental challenges, improved accessibility, updated graphics'),
+('Activity Worksheets Template', '1.2', 'Previous worksheet version', '/templates/worksheets-template-v1.2.docx', 491520, false, 'Minor updates and corrections')
+ON CONFLICT (name, version) DO NOTHING;
+
+-- Insert sample partner data
+INSERT INTO partners (name, logo_url, website, partnership_type, description, is_featured, partnership_start_date, impact_summary) VALUES
+('TechCorp Industries', '/api/placeholder/200/100', 'https://www.techcorp.com', 'Corporate Sponsorship', 'Leading technology company supporting our environmental STEM education initiatives through employee volunteering and program sponsorship.', true, '2022-03-15', 'Sponsored 50 presentations and provided volunteer coordination platform development.'),
+('Green Valley School District', '/api/placeholder/200/100', 'https://www.greenvalleyschools.org', 'School District Partnership', 'Comprehensive partnership bringing environmental education to all elementary schools in the district.', true, '2021-09-01', 'Reached 15,000 students across 25 schools with environmental STEM curriculum.'),
+('EcoFoundation', '/api/placeholder/200/100', 'https://www.ecofoundation.org', 'Non-Profit Collaboration', 'Collaborative environmental organization working together on climate change education and community outreach.', true, '2023-01-20', 'Joint community events and shared resources for environmental education.'),
+('InnovateEd Foundation', '/api/placeholder/200/100', 'https://www.innovateed.org', 'Educational Institution', 'Educational foundation providing curriculum development support and teacher training resources.', false, '2022-08-10', 'Developed advanced curriculum modules and provided teacher certification programs.'),
+('Community Action Network', '/api/placeholder/200/100', 'https://www.communityaction.net', 'Community Organization', 'Local community organization facilitating connections between schools and environmental programs.', false, '2023-05-01', 'Organized community environmental events and school-family engagement programs.'),
+('Sustainable Solutions Inc', '/api/placeholder/200/100', 'https://www.sustainablesolutions.com', 'Corporate Sponsorship', 'Environmental consulting firm providing expertise and supporting our mission through corporate matching programs.', false, '2022-11-15', 'Provided environmental consulting expertise and matched employee donations.'),
+('Future Leaders Academy', '/api/placeholder/200/100', 'https://www.futureleaders.edu', 'Educational Institution', 'STEM-focused educational institution collaborating on advanced environmental science curriculum.', false, '2023-03-01', 'Co-developed advanced environmental science modules for high school students.'),
+('Green Communities Alliance', '/api/placeholder/200/100', 'https://www.greencommunities.org', 'Community Organization', 'Regional alliance of community groups working together to promote environmental awareness.', false, '2023-07-01', 'Expanded community outreach programs and increased local engagement.')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert sample chapter data
+INSERT INTO chapters (name, location, latitude, longitude, status, founded_date, member_count, schools_served, presentations_delivered, growth_metrics) VALUES
+('Silicon Valley Chapter', 'San Jose, CA', 37.3382, -122.0453, 'active', '2021-01-15', 156, 45, 234, '{"monthlyGrowth": 12, "schoolsAdded": 3, "presentationsCompleted": 18}'::jsonb),
+('Bay Area North Chapter', 'San Francisco, CA', 37.7749, -122.4194, 'active', '2021-08-20', 98, 32, 156, '{"monthlyGrowth": 8, "schoolsAdded": 2, "presentationsCompleted": 12}'::jsonb),
+('Sacramento Valley Chapter', 'Sacramento, CA', 38.5816, -121.4944, 'active', '2022-03-10', 67, 28, 134, '{"monthlyGrowth": 6, "schoolsAdded": 1, "presentationsCompleted": 9}'::jsonb),
+('Los Angeles Chapter', 'Los Angeles, CA', 34.0522, -118.2437, 'active', '2022-09-15', 123, 38, 189, '{"monthlyGrowth": 15, "schoolsAdded": 4, "presentationsCompleted": 22}'::jsonb),
+('San Diego Chapter', 'San Diego, CA', 32.7157, -117.1611, 'active', '2023-01-20', 89, 31, 145, '{"monthlyGrowth": 10, "schoolsAdded": 2, "presentationsCompleted": 14}'::jsonb),
+('Phoenix Chapter', 'Phoenix, AZ', 33.4484, -112.0740, 'forming', '2024-02-15', 23, 8, 24, '{"monthlyGrowth": 4, "schoolsAdded": 1, "presentationsCompleted": 3}'::jsonb),
+('Las Vegas Chapter', 'Las Vegas, NV', 36.1699, -115.1398, 'forming', '2024-03-01', 18, 6, 18, '{"monthlyGrowth": 3, "schoolsAdded": 1, "presentationsCompleted": 2}'::jsonb),
+('Seattle Chapter', 'Seattle, WA', 47.6062, -122.3321, 'planned', '2025-01-01', 0, 0, 0, '{"monthlyGrowth": 0, "schoolsAdded": 0, "presentationsCompleted": 0}'::jsonb),
+('Austin Chapter', 'Austin, TX', 30.2672, -97.7431, 'planned', '2025-03-01', 0, 0, 0, '{"monthlyGrowth": 0, "schoolsAdded": 0, "presentationsCompleted": 0}'::jsonb),
+('Vancouver Chapter', 'Vancouver, BC, Canada', 49.2827, -123.1207, 'planned', '2025-06-01', 0, 0, 0, '{"monthlyGrowth": 0, "schoolsAdded": 0, "presentationsCompleted": 0}'::jsonb)
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert sample grants data
+INSERT INTO grants_transparency (name, funder, amount, received_date, status, category, description, objectives, outcomes, use_of_funds, impact) VALUES
+('California Environmental Education Initiative', 'California Department of Education', 25000.00, '2023-09-01', 'active', 'State Education Grant', 'Supporting environmental STEM education expansion across California schools', '["Deliver 100 environmental STEM presentations", "Train 50 volunteer presenters", "Develop curriculum alignment resources"]'::jsonb, '["85 presentations completed (85% of goal)", "45 volunteers trained", "Curriculum resources developed and distributed"]'::jsonb, '[{"category": "Program Delivery", "amount": 15000, "percentage": 60, "description": "Volunteer training, materials, and presentation delivery"}, {"category": "Curriculum Development", "amount": 6000, "percentage": 24, "description": "Teacher resources and curriculum alignment materials"}, {"category": "Evaluation & Reporting", "amount": 2500, "percentage": 10, "description": "Program assessment and funder reporting"}, {"category": "Administration", "amount": 1500, "percentage": 6, "description": "Grant management and compliance"}]'::jsonb, 'Expanded reach to 12 new schools, trained 45 volunteers, delivered 85 presentations reaching 2,500+ students'),
+('Silicon Valley STEM Education Partnership', 'Silicon Valley Community Foundation', 15000.00, '2022-06-15', 'completed', 'Community Foundation Grant', 'Building partnerships between tech industry and local schools for STEM education', '["Establish corporate volunteer partnerships", "Develop industry-school mentorship programs", "Create STEM career awareness materials"]'::jsonb, '["8 corporate partnerships established", "3 mentorship programs launched", "STEM career materials distributed to 25 schools"]'::jsonb, '[{"category": "Partnership Development", "amount": 7500, "percentage": 50, "description": "Corporate outreach and relationship building"}, {"category": "Program Materials", "amount": 4500, "percentage": 30, "description": "STEM career resources and mentorship materials"}, {"category": "Events & Activities", "amount": 2250, "percentage": 15, "description": "Industry-school connection events"}, {"category": "Evaluation", "amount": 750, "percentage": 5, "description": "Program impact assessment"}]'::jsonb, 'Created lasting partnerships between 8 tech companies and local schools, established 3 ongoing mentorship programs'),
+('Climate Science Education Initiative', 'National Science Foundation', 50000.00, '2021-11-01', 'completed', 'Federal Research Grant', 'Developing research-based climate science curriculum for K-12 education', '["Research effective climate education methods", "Develop evidence-based curriculum", "Train educators in climate science instruction", "Evaluate program effectiveness"]'::jsonb, '["Published 3 research papers on climate education", "Developed comprehensive K-12 climate curriculum", "Trained 200 educators", "Achieved 89% student knowledge retention"]'::jsonb, '[{"category": "Research & Development", "amount": 25000, "percentage": 50, "description": "Curriculum research and development"}, {"category": "Educator Training", "amount": 15000, "percentage": 30, "description": "Professional development workshops"}, {"category": "Evaluation & Assessment", "amount": 7500, "percentage": 15, "description": "Program evaluation and research"}, {"category": "Dissemination", "amount": 2500, "percentage": 5, "description": "Sharing findings and resources"}]'::jsonb, 'Created nationally recognized climate education curriculum, trained 200 educators, published research establishing best practices'),
+('Youth Environmental Leadership Program', 'Environmental Protection Agency', 30000.00, '2024-01-15', 'active', 'Federal Environmental Grant', 'Empowering youth to become environmental leaders through hands-on STEM experiences', '["Develop youth leadership curriculum", "Create environmental action projects", "Build community partnerships", "Measure youth leadership outcomes"]'::jsonb, '["Leadership curriculum developed (75% complete)", "5 environmental action projects launched", "12 community partnerships established", "Baseline assessment completed"]'::jsonb, '[{"category": "Curriculum & Materials", "amount": 12000, "percentage": 40, "description": "Youth leadership curriculum and project materials"}, {"category": "Program Implementation", "amount": 9000, "percentage": 30, "description": "Project coordination and youth activities"}, {"category": "Partnership Development", "amount": 6000, "percentage": 20, "description": "Community and organizational partnerships"}, {"category": "Evaluation & Reporting", "amount": 3000, "percentage": 10, "description": "Program assessment and EPA reporting"}]'::jsonb, 'Launched 5 youth-led environmental projects, engaged 200+ youth participants, established 12 community partnerships')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample intern departments
+INSERT INTO intern_departments (name, description, responsibilities, requirements) VALUES
+('Outreach', 'Build partnerships with schools and coordinate presentation logistics', '["Manage teacher relationships and communications", "Schedule presentations and handle logistics", "Track presentation impact and feedback", "Develop outreach materials and strategies", "Coordinate with school districts and administrators"]'::jsonb, '["Strong communication and organizational skills", "Experience with customer relationship management", "Interest in education and community engagement", "Ability to coordinate complex logistics"]'::jsonb),
+('Technology', 'Develop and maintain digital platforms and volunteer management systems', '["Maintain and improve volunteer management platform", "Develop new features and user interfaces", "Manage databases and ensure data integrity", "Implement automation and workflow improvements", "Handle technical support and troubleshooting"]'::jsonb, '["Programming experience (preferred languages: TypeScript, Python)", "Understanding of web development and databases", "Problem-solving and analytical thinking", "Interest in educational technology"]'::jsonb),
+('Media', 'Create content, manage social media, and tell our story visually', '["Create engaging social media content", "Produce videos and photography for presentations", "Design marketing materials and presentations", "Manage website content and blog posts", "Track engagement metrics and analytics"]'::jsonb, '["Graphic design or video production experience", "Social media management skills", "Creative writing and storytelling abilities", "Photography or videography skills"]'::jsonb),
+('Volunteer Development', 'Recruit, train, and support our volunteer teams', '["Manage volunteer recruitment and applications", "Coordinate training sessions and workshops", "Support volunteer team formation and dynamics", "Track volunteer engagement and retention", "Develop volunteer resources and support materials"]'::jsonb, '["Experience with volunteer management or HR", "Strong interpersonal and training skills", "Understanding of team dynamics", "Passion for mentorship and development"]'::jsonb),
+('Communications', 'Manage internal communications and stakeholder relationships', '["Coordinate internal team communications", "Manage newsletter and email campaigns", "Handle stakeholder relationships and partnerships", "Organize events and team meetings", "Maintain organizational documentation"]'::jsonb, '["Excellent written and verbal communication skills", "Experience with email marketing tools", "Strong organizational and coordination abilities", "Understanding of nonprofit communications"]'::jsonb),
+('Operations', 'Handle logistics, process optimization, and behind-the-scenes coordination', '["Manage operational workflows and processes", "Coordinate logistics for events and presentations", "Handle administrative tasks and record-keeping", "Optimize operational efficiency and scalability", "Support cross-departmental coordination"]'::jsonb, '["Strong organizational and logistical skills", "Attention to detail and process orientation", "Experience with operational management", "Problem-solving and analytical abilities"]'::jsonb)
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert sample intern projects
+INSERT INTO intern_projects_showcase (title, department, description, outcomes, images, completed_date, featured, impact_summary) VALUES
+('Volunteer Management Platform Redesign', 'Technology', 'Complete overhaul of the volunteer signup and management system, improving user experience and administrative efficiency.', '["Reduced signup time by 40%", "Improved volunteer retention tracking", "Enhanced admin dashboard with real-time analytics", "Mobile-responsive design for on-the-go access"]'::jsonb, '["/api/placeholder/400/300", "/api/placeholder/400/300"]'::jsonb, '2024-01-15', true, 'Streamlined volunteer onboarding process, increasing volunteer satisfaction and administrative efficiency.'),
+('School Partnership Expansion Campaign', 'Outreach', 'Developed and executed a comprehensive outreach strategy to expand partnerships with local schools and districts.', '["Secured partnerships with 15 new schools", "Created school outreach toolkit", "Established monthly communication newsletter", "Organized teacher information sessions"]'::jsonb, '["/api/placeholder/400/300"]'::jsonb, '2024-02-01', true, 'Expanded program reach to serve 3,000 additional students across 5 new school districts.'),
+('Environmental Education Video Series', 'Media', 'Produced a 6-part video series explaining complex environmental concepts through engaging animations and real-world examples.', '["Created 6 educational videos (2-3 minutes each)", "Developed accompanying lesson plans", "Reached 50,000+ views on social media", "Translated content into Spanish and Mandarin"]'::jsonb, '["/api/placeholder/400/300", "/api/placeholder/400/300", "/api/placeholder/400/300"]'::jsonb, '2023-12-20', true, 'Made complex environmental topics accessible to broader audience, supporting classroom learning objectives.')
+ON CONFLICT DO NOTHING;
+
+DO $$
+DECLARE
+  project_id uuid;
+BEGIN
+  -- Add contributors to the first project
+  SELECT id INTO project_id FROM intern_projects_showcase WHERE title = 'Volunteer Management Platform Redesign' LIMIT 1;
+  IF project_id IS NOT NULL THEN
+    INSERT INTO intern_projects_contributors (project_id, name) VALUES
+    (project_id, 'Alex Chen'),
+    (project_id, 'Maria Rodriguez')
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  -- Add contributors to the second project
+  SELECT id INTO project_id FROM intern_projects_showcase WHERE title = 'School Partnership Expansion Campaign' LIMIT 1;
+  IF project_id IS NOT NULL THEN
+    INSERT INTO intern_projects_contributors (project_id, name) VALUES
+    (project_id, 'Jordan Kim')
+    ON CONFLICT DO NOTHING;
+  END IF;
+
+  -- Add contributors to the third project
+  SELECT id INTO project_id FROM intern_projects_showcase WHERE title = 'Environmental Education Video Series' LIMIT 1;
+  IF project_id IS NOT NULL THEN
+    INSERT INTO intern_projects_contributors (project_id, name) VALUES
+    (project_id, 'Sarah Patel'),
+    (project_id, 'Marcus Johnson')
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+
+-- Insert sample blog posts
+INSERT INTO intern_blog_posts (title, content, excerpt, department, is_director_note, tags, read_time, views, likes, is_published, published_at) VALUES
+('My First Month as a Technology Intern', 'Reflecting on my initial experiences working on the volunteer management platform...', 'My journey from classroom learning to real-world application in nonprofit technology.', 'Technology', false, '["internship", "technology", "growth"]'::jsonb, 5, 245, 12, true, '2024-02-15T10:00:00Z'),
+('Q1 Achievements and Looking Ahead', 'A comprehensive overview of our accomplishments this quarter and strategic priorities moving forward...', 'Celebrating our growth and setting ambitious goals for the next quarter.', 'Executive', true, '["quarterly", "achievements", "strategy"]'::jsonb, 8, 189, 24, true, '2024-02-01T09:00:00Z'),
+('Building School Partnerships: Lessons Learned', 'Insights from developing relationships with local educational institutions...', 'Key strategies for successful school partnerships and community engagement.', 'Outreach', false, '["outreach", "schools", "relationships"]'::jsonb, 6, 156, 8, true, '2024-01-28T14:30:00Z')
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- PHASE 1: ADVANCED CMS & RBAC SYSTEM - DATABASE SCHEMA EXTENSIONS
+-- ============================================================================
+
+-- 1.1 Expand Content Management Tables
+-- ============================================================================
+
+-- Enhanced content_blocks table with categories and rich content support
+ALTER TABLE content_blocks ADD COLUMN IF NOT EXISTS category text DEFAULT 'general';
+ALTER TABLE content_blocks ADD COLUMN IF NOT EXISTS rich_content jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE content_blocks ADD COLUMN IF NOT EXISTS version_history jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE content_blocks ADD COLUMN IF NOT EXISTS edit_permissions jsonb DEFAULT '{}'::jsonb;
+
+-- 1.2 Create Forms Management Tables
+-- ============================================================================
+
+-- Add schema and workflow config to existing forms table
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS schema jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS visibility jsonb DEFAULT '["admin", "founder"]'::jsonb;
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS edit_permissions jsonb DEFAULT '["admin", "founder"]'::jsonb;
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS workflow_config jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS ai_generated boolean DEFAULT false;
+
+-- Add conditional logic and enhanced validation to form_columns
+ALTER TABLE form_columns ADD COLUMN IF NOT EXISTS conditional_logic jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE form_columns ADD COLUMN IF NOT EXISTS field_options jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE form_columns ADD COLUMN IF NOT EXISTS validation_rules jsonb DEFAULT '{}'::jsonb;
+
+-- 1.3 Create Advanced RBAC Tables
+-- ============================================================================
+
+-- Role-based permissions table
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  role text NOT NULL CHECK (role IN ('founder', 'intern', 'volunteer', 'teacher', 'partner')),
+  permission_key text NOT NULL,
+  granted boolean DEFAULT true,
+  resource_scope jsonb DEFAULT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(role, permission_key)
+);
+
+-- User-specific custom permissions table
+CREATE TABLE IF NOT EXISTS user_custom_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  permission_type text NOT NULL CHECK (permission_type IN ('content_block', 'form', 'dataset', 'blog_post')),
+  resource_id uuid,
+  permissions jsonb NOT NULL DEFAULT '{}'::jsonb,
+  granted_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  granted_at timestamptz DEFAULT now(),
+  expires_at timestamptz,
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- 1.4 Enhance Users Table
+-- ============================================================================
+
+-- Add approval workflow and subrole fields
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subrole text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS needs_approval boolean DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_by uuid REFERENCES users(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_at timestamptz;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rejection_reason text;
+
+-- Update status check constraint to include pending_approval
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check;
+ALTER TABLE users ADD CONSTRAINT users_status_check
+  CHECK (status IN ('active', 'inactive', 'pending', 'suspended', 'pending_approval'));
+
+-- 1.5 Create Blog Publishing Tables
+-- ============================================================================
+
+-- Add publishing workflow fields to intern_blog_posts
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS status text DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'published', 'archived'));
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS permitted_roles jsonb DEFAULT '["volunteer", "intern", "teacher", "partner"]'::jsonb;
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS permitted_editors jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS submitted_for_review_at timestamptz;
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS reviewed_by uuid REFERENCES users(id);
+ALTER TABLE intern_blog_posts ADD COLUMN IF NOT EXISTS review_notes text;
+
+-- 1.6 Add Visibility Columns to Sensitive Tables
+-- ============================================================================
+
+-- Add visibility control to volunteer applications
+ALTER TABLE volunteers ADD COLUMN IF NOT EXISTS visibility_roles jsonb DEFAULT '["admin", "founder"]'::jsonb;
+
+-- Add visibility control to teacher requests
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS visibility_roles jsonb DEFAULT '["admin", "founder", "outreach", "operations"]'::jsonb;
+
+-- Add visibility control to presentations
+ALTER TABLE presentations ADD COLUMN IF NOT EXISTS visibility_roles jsonb DEFAULT '["admin", "founder", "volunteer", "teacher"]'::jsonb;
+
+-- Add visibility control to volunteer hours
+ALTER TABLE volunteer_hours ADD COLUMN IF NOT EXISTS visibility_roles jsonb DEFAULT '["admin", "founder"]'::jsonb;
+
+-- Add visibility control to intern projects
+ALTER TABLE intern_projects ADD COLUMN IF NOT EXISTS visibility_roles jsonb DEFAULT '["admin", "founder", "intern"]'::jsonb;
+
+-- ============================================================================
+-- RLS POLICIES FOR NEW TABLES
+-- ============================================================================
+
+-- Enable RLS on new tables
+ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_custom_permissions ENABLE ROW LEVEL SECURITY;
+
+-- Role permissions policies (admins can manage)
+CREATE POLICY "Admins can manage role permissions" ON role_permissions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- User custom permissions policies
+CREATE POLICY "Users can view their own custom permissions" ON user_custom_permissions
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage all custom permissions" ON user_custom_permissions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'founder')
+    )
+  );
+
+-- ============================================================================
+-- PERMISSION SYSTEM HELPERS
+-- ============================================================================
+
+-- Helper function to check user permissions
+CREATE OR REPLACE FUNCTION user_has_permission(permission_key text, resource_id uuid DEFAULT NULL)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    user_id uuid;
+    user_role text;
+    has_permission boolean := false;
+BEGIN
+    -- Get current user
+    user_id := auth.uid();
+    IF user_id IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- Get user role
+    SELECT role INTO user_role
+    FROM users
+    WHERE id = user_id;
+
+    IF user_role IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- Check custom permissions first
+    SELECT EXISTS(
+        SELECT 1
+        FROM user_custom_permissions ucp
+        WHERE ucp.user_id = user_has_permission.user_id
+          AND (ucp.permission_type = split_part(permission_key, '.', 1) OR ucp.permission_type = 'global')
+          AND (ucp.resource_id IS NULL OR ucp.resource_id = resource_id)
+          AND (ucp.expires_at IS NULL OR ucp.expires_at > now())
+          AND (ucp.permissions->>split_part(permission_key, '.', 2))::boolean = true
+    ) INTO has_permission;
+
+    -- If no custom permission found, check role permissions
+    IF NOT has_permission THEN
+        SELECT granted INTO has_permission
+        FROM role_permissions
+        WHERE role = user_role
+          AND permission_key = user_has_permission.permission_key
+          AND (resource_scope IS NULL OR resource_scope ? resource_id::text)
+        LIMIT 1;
+    END IF;
+
+    RETURN COALESCE(has_permission, false);
+END;
+$$;
+
+-- ============================================================================
+-- UPDATED RLS POLICIES WITH PERMISSION SYSTEM
+-- ============================================================================
+
+-- Content blocks - use permission system
+DROP POLICY IF EXISTS "Content blocks are viewable by authenticated users" ON content_blocks;
+CREATE POLICY "Content blocks permission-based access" ON content_blocks
+  FOR ALL USING (
+    user_has_permission('content.view', id) OR
+    user_has_permission('content.edit', id) OR
+    user_has_permission('admin.access')
+  );
+
+-- Forms - use permission system
+DROP POLICY IF EXISTS "Forms are viewable by authenticated users" ON forms;
+CREATE POLICY "Forms permission-based access" ON forms
+  FOR SELECT USING (
+    user_has_permission('forms.view', id) OR
+    user_has_permission('admin.access')
+  );
+
+CREATE POLICY "Forms permission-based editing" ON forms
+  FOR ALL USING (
+    user_has_permission('forms.edit', id) OR
+    user_has_permission('admin.access')
+  );
+
+-- Form responses - permission based
+DROP POLICY IF EXISTS "Form responses are manageable by form creators and admins" ON form_responses;
+CREATE POLICY "Form responses permission-based access" ON form_responses
+  FOR SELECT USING (
+    user_has_permission('forms.view') OR
+    user_has_permission('admin.access') OR
+    submitted_by = auth.uid()
+  );
+
+CREATE POLICY "Form responses permission-based editing" ON form_responses
+  FOR ALL USING (
+    user_has_permission('forms.edit') OR
+    user_has_permission('admin.access')
+  );
+
+-- Blog posts - permission based
+DROP POLICY IF EXISTS "Blog posts are viewable by authenticated users" ON intern_blog_posts;
+CREATE POLICY "Blog posts permission-based access" ON intern_blog_posts
+  FOR SELECT USING (
+    user_has_permission('blog.view', id) OR
+    user_has_permission('admin.access') OR
+    (status = 'published' AND permitted_roles ? (SELECT role FROM users WHERE id = auth.uid()))
+  );
+
+CREATE POLICY "Blog posts permission-based editing" ON intern_blog_posts
+  FOR ALL USING (
+    user_has_permission('blog.edit', id) OR
+    user_has_permission('admin.access') OR
+    (created_by = auth.uid() AND status = 'draft')
+  );
+
+-- ============================================================================
+-- VISIBILITY-BASED RLS POLICIES
+-- ============================================================================
+
+-- Helper function to check visibility
+CREATE OR REPLACE FUNCTION user_can_view_resource(resource_table text, resource_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    user_id uuid;
+    user_role text;
+    visibility_roles text[];
+BEGIN
+    -- Get current user
+    user_id := auth.uid();
+    IF user_id IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- Get user role
+    SELECT role INTO user_role
+    FROM users
+    WHERE id = user_id;
+
+    IF user_role IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- Get visibility roles based on table
+    CASE resource_table
+        WHEN 'forms' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM forms WHERE id = resource_id;
+        WHEN 'volunteers' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM volunteers WHERE id = resource_id;
+        WHEN 'schools' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM schools WHERE id = resource_id;
+        WHEN 'presentations' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM presentations WHERE id = resource_id;
+        WHEN 'volunteer_hours' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM volunteer_hours WHERE id = resource_id;
+        WHEN 'intern_projects' THEN
+            SELECT visibility_roles INTO visibility_roles
+            FROM intern_projects WHERE id = resource_id;
+        ELSE
+            RETURN false;
+    END CASE;
+
+    -- If no visibility restrictions, use default visibility
+    IF visibility_roles IS NULL OR array_length(visibility_roles, 1) = 0 THEN
+        -- Default visibility based on role and resource type
+        CASE resource_table
+            WHEN 'forms' THEN
+                RETURN user_role IN ('founder', 'intern', 'volunteer', 'teacher');
+            WHEN 'volunteers' THEN
+                RETURN user_role IN ('founder', 'intern');
+            WHEN 'schools' THEN
+                RETURN user_role IN ('founder', 'intern', 'outreach');
+            WHEN 'presentations' THEN
+                RETURN user_role IN ('founder', 'intern', 'volunteer', 'teacher');
+            WHEN 'volunteer_hours' THEN
+                RETURN user_role IN ('founder', 'intern');
+            WHEN 'intern_projects' THEN
+                RETURN user_role IN ('founder', 'intern');
+            ELSE
+                RETURN user_role = 'founder';
+        END CASE;
+    END IF;
+
+    -- Check if 'public' is in visibility roles
+    IF 'public' = ANY(visibility_roles) THEN
+        RETURN true;
+    END IF;
+
+    -- Check if user's role is in visibility roles
+    IF user_role = ANY(visibility_roles) THEN
+        RETURN true;
+    END IF;
+
+    -- Founders and admins can see everything (unless explicitly excluded)
+    IF user_role IN ('founder', 'admin') THEN
+        RETURN true;
+    END IF;
+
+    RETURN false;
+END;
+$$;
+
+-- Apply visibility policies to tables
+CREATE POLICY "Forms visibility-based access" ON forms
+  FOR SELECT USING (
+    user_can_view_resource('forms', id) OR
+    user_has_permission('forms.view', id) OR
+    user_has_permission('admin.access')
+  );
+
+CREATE POLICY "Volunteer applications visibility-based access" ON volunteers
+  FOR SELECT USING (
+    user_can_view_resource('volunteers', id) OR
+    user_has_permission('admin.access') OR
+    email = (SELECT email FROM users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "School requests visibility-based access" ON schools
+  FOR SELECT USING (
+    user_can_view_resource('schools', id) OR
+    user_has_permission('admin.access') OR
+    email = (SELECT email FROM users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Presentations visibility-based access" ON presentations
+  FOR SELECT USING (
+    user_can_view_resource('presentations', id) OR
+    user_has_permission('admin.access')
+  );
+
+CREATE POLICY "Volunteer hours visibility-based access" ON volunteer_hours
+  FOR SELECT USING (
+    user_can_view_resource('volunteer_hours', id) OR
+    user_has_permission('admin.access') OR
+    volunteer_id = auth.uid()
+  );
+
+CREATE POLICY "Intern projects visibility-based access" ON intern_projects
+  FOR SELECT USING (
+    user_can_view_resource('intern_projects', id) OR
+    user_has_permission('admin.access') OR
+    assigned_to = auth.uid()
+  );
+
+-- ============================================================================
+-- INITIAL DATA SEEDING
+-- ============================================================================
+
+-- Seed default role permissions
+INSERT INTO role_permissions (role, permission_key, granted) VALUES
+-- Founder permissions (all access)
+('founder', 'content.view', true),
+('founder', 'content.edit', true),
+('founder', 'content.create', true),
+('founder', 'content.delete', true),
+('founder', 'content.publish', true),
+('founder', 'forms.view', true),
+('founder', 'forms.edit', true),
+('founder', 'forms.create', true),
+('founder', 'forms.delete', true),
+('founder', 'forms.publish', true),
+('founder', 'users.view', true),
+('founder', 'users.edit', true),
+('founder', 'users.create', true),
+('founder', 'users.delete', true),
+('founder', 'blog.view', true),
+('founder', 'blog.edit', true),
+('founder', 'blog.create', true),
+('founder', 'blog.delete', true),
+('founder', 'blog.publish', true),
+('founder', 'analytics.view', true),
+('founder', 'permissions.view', true),
+('founder', 'permissions.edit', true),
+
+-- Intern permissions (limited access)
+('intern', 'content.view', true),
+('intern', 'content.edit', false),
+('intern', 'content.create', false),
+('intern', 'forms.view', true),
+('intern', 'forms.edit', false),
+('intern', 'forms.create', false),
+('intern', 'users.view', false),
+('intern', 'users.edit', false),
+('intern', 'blog.view', true),
+('intern', 'blog.edit', true),
+('intern', 'blog.create', true),
+('intern', 'blog.publish', false),
+('intern', 'analytics.view', false),
+
+-- Volunteer permissions (basic access)
+('volunteer', 'content.view', true),
+('volunteer', 'forms.view', true),
+('volunteer', 'forms.edit', false),
+('volunteer', 'users.view', false),
+('volunteer', 'blog.view', true),
+('volunteer', 'analytics.view', false),
+
+-- Teacher permissions (educational content access)
+('teacher', 'content.view', true),
+('teacher', 'forms.view', true),
+('teacher', 'forms.edit', false),
+('teacher', 'blog.view', true),
+
+-- Partner permissions (limited access)
+('partner', 'content.view', true),
+('partner', 'forms.view', true),
+('partner', 'blog.view', true)
+ON CONFLICT (role, permission_key) DO NOTHING;
+
+-- ============================================================================
+-- MIGRATION: ACTION ITEMS SYSTEM
+-- ============================================================================
+
+-- Enhance task_assignments table for action items
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS category text DEFAULT 'general' CHECK (category IN ('content', 'review', 'approval', 'followup', 'admin', 'general'));
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS related_items jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS subtasks jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS tags text[] DEFAULT '{}'::text[];
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS estimated_hours numeric(4,1);
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS actual_hours numeric(4,1);
+ALTER TABLE task_assignments ADD COLUMN IF NOT EXISTS progress_percentage int DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100);
+
+-- Action Items table for system-generated actionable notifications
+CREATE TABLE IF NOT EXISTS action_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  type text NOT NULL CHECK (type IN ('task', 'review', 'approval', 'followup', 'deadline', 'reminder', 'system_alert')),
+  priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled', 'overdue')),
+  assigned_to text[] DEFAULT '{}'::text[], -- Array of user IDs (flexible assignment)
+  assigned_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  due_date timestamptz,
+  completed_at timestamptz,
+  completed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  metadata jsonb DEFAULT '{}'::jsonb, -- Flexible metadata for different item types
+  related_entity_type text, -- 'volunteer', 'application', 'presentation', 'project', etc.
+  related_entity_id text, -- ID of the related entity
+  action_required jsonb DEFAULT '{}'::jsonb, -- Action configuration (buttons, URLs, etc.)
+  is_system_generated boolean DEFAULT false,
+  tags text[] DEFAULT '{}'::text[],
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Enhanced notifications table for actionable items
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent'));
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS action_buttons jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+
+-- Action Items Comments/Notes
+CREATE TABLE IF NOT EXISTS action_item_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action_item_id uuid REFERENCES action_items(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  comment text NOT NULL,
+  is_internal boolean DEFAULT false, -- Internal notes vs public comments
+  created_at timestamptz DEFAULT now()
+);
+
+-- Action Items History/Logs
+CREATE TABLE IF NOT EXISTS action_item_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action_item_id uuid REFERENCES action_items(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  action text NOT NULL, -- 'created', 'assigned', 'status_changed', 'completed', 'commented'
+  old_value text,
+  new_value text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_action_items_assigned_to ON action_items USING GIN(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items(status);
+CREATE INDEX IF NOT EXISTS idx_action_items_type ON action_items(type);
+CREATE INDEX IF NOT EXISTS idx_action_items_due_date ON action_items(due_date);
+CREATE INDEX IF NOT EXISTS idx_action_items_priority ON action_items(priority);
+CREATE INDEX IF NOT EXISTS idx_action_items_related_entity ON action_items(related_entity_type, related_entity_id);
+CREATE INDEX IF NOT EXISTS idx_action_items_created ON action_items(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_action_item_comments_item ON action_item_comments(action_item_id);
+CREATE INDEX IF NOT EXISTS idx_action_item_history_item ON action_item_history(action_item_id);
+
+-- Enhanced task indexes
+CREATE INDEX IF NOT EXISTS idx_task_assignments_category ON task_assignments(category);
+CREATE INDEX IF NOT EXISTS idx_task_assignments_tags ON task_assignments USING GIN(tags);
+
+-- RLS Policies for Action Items
+ALTER TABLE action_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_item_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_item_history ENABLE ROW LEVEL SECURITY;
+
+-- Action Items: Users can view items assigned to them
+DROP POLICY IF EXISTS "action_items_assigned_users" ON action_items;
+CREATE POLICY "action_items_assigned_users" ON action_items
+  FOR SELECT USING (
+    auth.uid()::text = ANY(assigned_to) OR
+    auth.uid() = assigned_by OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin')
+    )
+  );
+
+-- Action Items: Founders/admins can manage all, others can update assigned items
+DROP POLICY IF EXISTS "action_items_update" ON action_items;
+CREATE POLICY "action_items_update" ON action_items
+  FOR UPDATE USING (
+    auth.uid()::text = ANY(assigned_to) OR
+    auth.uid() = assigned_by OR
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin')
+    )
+  );
+
+-- Action Items: Founders/admins can create, others can create for themselves
+DROP POLICY IF EXISTS "action_items_insert" ON action_items;
+CREATE POLICY "action_items_insert" ON action_items
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin')
+    ) OR
+    auth.uid()::text = ANY(assigned_to)
+  );
+
+-- Comments: Users can view comments on items they can access
+DROP POLICY IF EXISTS "action_item_comments_select" ON action_item_comments;
+CREATE POLICY "action_item_comments_select" ON action_item_comments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM action_items ai
+      WHERE ai.id = action_item_comments.action_item_id
+      AND (
+        auth.uid()::text = ANY(ai.assigned_to) OR
+        auth.uid() = ai.assigned_by OR
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin'))
+      )
+    )
+  );
+
+-- Comments: Users can add comments to items they can access
+DROP POLICY IF EXISTS "action_item_comments_insert" ON action_item_comments;
+CREATE POLICY "action_item_comments_insert" ON action_item_comments
+  FOR INSERT WITH CHECK (
+    user_id = auth.uid() AND
+    EXISTS (
+      SELECT 1 FROM action_items ai
+      WHERE ai.id = action_item_comments.action_item_id
+      AND (
+        auth.uid()::text = ANY(ai.assigned_to) OR
+        auth.uid() = ai.assigned_by OR
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin'))
+      )
+    )
+  );
+
+-- History: Read-only for users who can access the item
+DROP POLICY IF EXISTS "action_item_history_select" ON action_item_history;
+CREATE POLICY "action_item_history_select" ON action_item_history
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM action_items ai
+      WHERE ai.id = action_item_history.action_item_id
+      AND (
+        auth.uid()::text = ANY(ai.assigned_to) OR
+        auth.uid() = ai.assigned_by OR
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('founder', 'admin'))
+      )
+    )
+  );
+
+-- Functions for Action Items System
+
+-- Function to create action item from system event
+CREATE OR REPLACE FUNCTION create_action_item_from_event(
+  p_title text,
+  p_description text,
+  p_type text,
+  p_priority text DEFAULT 'medium',
+  p_assigned_to text[] DEFAULT '{}'::text[],
+  p_due_date timestamptz DEFAULT NULL,
+  p_metadata jsonb DEFAULT '{}'::jsonb,
+  p_related_entity_type text DEFAULT NULL,
+  p_related_entity_id text DEFAULT NULL
+) RETURNS uuid AS $$
+DECLARE
+  new_item_id uuid;
+BEGIN
+  INSERT INTO action_items (
+    title, description, type, priority, assigned_to, due_date,
+    metadata, related_entity_type, related_entity_id, is_system_generated
+  ) VALUES (
+    p_title, p_description, p_type, p_priority, p_assigned_to, p_due_date,
+    p_metadata, p_related_entity_type, p_related_entity_id, true
+  )
+  RETURNING id INTO new_item_id;
+
+  -- Log creation in history
+  INSERT INTO action_item_history (action_item_id, action, new_value, metadata)
+  VALUES (new_item_id, 'created', 'system_generated', p_metadata);
+
+  RETURN new_item_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to auto-create action items for common events
+CREATE OR REPLACE FUNCTION auto_create_action_items() RETURNS trigger AS $$
+BEGIN
+  -- Volunteer application submitted - create review task
+  IF TG_TABLE_NAME = 'volunteers' AND TG_OP = 'INSERT' THEN
+    PERFORM create_action_item_from_event(
+      'Review volunteer application: ' || NEW.team_name,
+      'New volunteer application requires review and approval.',
+      'review',
+      'high',
+      ARRAY[(SELECT array_agg(id::text) FROM users WHERE role = 'founder')],
+      now() + interval '3 days',
+      jsonb_build_object('volunteer_id', NEW.id, 'team_name', NEW.team_name),
+      'volunteer',
+      NEW.id::text
+    );
+    RETURN NEW;
+  END IF;
+
+  -- Teacher request submitted - create review task
+  IF TG_TABLE_NAME = 'schools' AND TG_OP = 'INSERT' THEN
+    PERFORM create_action_item_from_event(
+      'Review teacher request: ' || NEW.school_name,
+      'New teacher presentation request requires review.',
+      'review',
+      'high',
+      ARRAY[(SELECT array_agg(id::text) FROM users WHERE role = 'founder')],
+      now() + interval '2 days',
+      jsonb_build_object('school_id', NEW.id, 'school_name', NEW.school_name),
+      'school',
+      NEW.id::text
+    );
+    RETURN NEW;
+  END IF;
+
+  -- Presentation completed - create followup task
+  IF TG_TABLE_NAME = 'presentations' AND TG_OP = 'UPDATE' AND OLD.status != 'completed' AND NEW.status = 'completed' THEN
+    PERFORM create_action_item_from_event(
+      'Follow up with ' || (SELECT school_name FROM schools WHERE id = NEW.school_id),
+      'Send thank you note and gather feedback from the presentation.',
+      'followup',
+      'medium',
+      ARRAY[(SELECT array_agg(id::text) FROM users WHERE role IN ('founder', 'intern'))],
+      now() + interval '1 week',
+      jsonb_build_object('presentation_id', NEW.id, 'school_id', NEW.school_id),
+      'presentation',
+      NEW.id::text
+    );
+    RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for auto action item creation
+DROP TRIGGER IF EXISTS trigger_auto_action_items_volunteers ON volunteers;
+CREATE TRIGGER trigger_auto_action_items_volunteers
+  AFTER INSERT ON volunteers
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_create_action_items();
+
+DROP TRIGGER IF EXISTS trigger_auto_action_items_schools ON schools;
+CREATE TRIGGER trigger_auto_action_items_schools
+  AFTER INSERT ON schools
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_create_action_items();
+
+DROP TRIGGER IF EXISTS trigger_auto_action_items_presentations ON presentations;
+CREATE TRIGGER trigger_auto_action_items_presentations
+  AFTER UPDATE ON presentations
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_create_action_items();
+
+-- Function to update action item status and log history
+CREATE OR REPLACE FUNCTION update_action_item_status(
+  p_item_id uuid,
+  p_new_status text,
+  p_user_id uuid DEFAULT NULL
+) RETURNS void AS $$
+DECLARE
+  old_status text;
+BEGIN
+  -- Get current status
+  SELECT status INTO old_status FROM action_items WHERE id = p_item_id;
+
+  -- Update status
+  UPDATE action_items
+  SET status = p_new_status,
+      updated_at = now(),
+      completed_at = CASE WHEN p_new_status = 'completed' THEN now() ELSE completed_at END,
+      completed_by = CASE WHEN p_new_status = 'completed' THEN COALESCE(p_user_id, auth.uid()) ELSE completed_by END
+  WHERE id = p_item_id;
+
+  -- Log history
+  INSERT INTO action_item_history (action_item_id, user_id, action, old_value, new_value)
+  VALUES (p_item_id, COALESCE(p_user_id, auth.uid()), 'status_changed', old_status, p_new_status);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 

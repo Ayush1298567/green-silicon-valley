@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import Lottie from "lottie-react";
 import AnimatedCounter from "@/components/ui/AnimatedCounter";
+import { useContentBlock } from "@/lib/hooks/useContentBlock";
 
 interface HeroProps {
   schoolsCount: number;
@@ -19,6 +20,10 @@ export default function ProfessionalHero({
   presentationsCount
 }: HeroProps) {
   const [animationData, setAnimationData] = useState<any>(null);
+
+  // Load content from CMS
+  const heroTitle = useContentBlock('homepage_hero_title', 'Empowering Students Through Environmental STEM');
+  const heroSubtitle = useContentBlock('homepage_hero_subtitle', 'High school volunteers teaching elementary and middle school students about sustainability through hands-on, peer-to-peer presentations.');
 
   useEffect(() => {
     let isMounted = true;
@@ -73,12 +78,8 @@ export default function ProfessionalHero({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
               className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight"
-            >
-              Empowering Students
-              <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-gsv-greenLight to-gsv-warm">
-                Through Environmental STEM
-              </span>
-            </motion.h1>
+              dangerouslySetInnerHTML={{ __html: heroTitle }}
+            />
 
             {/* Subtext */}
             <motion.p
@@ -87,8 +88,7 @@ export default function ProfessionalHero({
               transition={{ duration: 0.8, delay: 0.4 }}
               className="text-xl md:text-2xl text-gsv-slate-300 leading-relaxed max-w-2xl"
             >
-              High school volunteers teaching elementary and middle school students 
-              about sustainability through hands-on, peer-to-peer presentations.
+              {heroSubtitle}
             </motion.p>
 
             {/* CTAs */}

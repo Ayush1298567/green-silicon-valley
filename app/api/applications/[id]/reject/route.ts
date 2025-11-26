@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { getDashboardPathForRole, type UserRole } from "@/lib/auth/roles";
+import { emailService } from "@/lib/email/email-service";
+import { actionItemsService } from "@/lib/actionItemsService";
 
 export async function POST(
   req: Request,
@@ -58,6 +60,23 @@ export async function POST(
           notes: reason
         });
 
+        // Update related action item
+        try {
+          await actionItemsService.onApplicationStatusChanged('volunteer', volunteerId.toString(), 'rejected', session.user.id);
+        } catch (actionError) {
+          console.error("Error updating action item for volunteer rejection:", actionError);
+        }
+
+        // Get volunteer details for email
+        const { data: volunteerData } = await supabase
+          .from("volunteers")
+          .select(`
+            team_name,
+            user:users!volunteers_user_id_fkey(name, email)
+          `)
+          .eq("id", volunteerId)
+          .single();
+
         // Create notification for volunteer team members
         const { data: teamMembers } = await supabase
           .from("team_members")
@@ -76,10 +95,54 @@ export async function POST(
           }));
 
           await supabase.from("notifications").insert(notifications);
+
+          // Send email to primary contact
+          if (volunteerData?.user) {
+            await emailService.sendVolunteerApplicationRejection({
+              name: volunteerData.user.name || "Volunteer",
+              email: volunteerData.user.email,
+              reason: reason
+            });
+          }
         }
       }
     } else if (type === "intern") {
       // Handle intern rejection
+    } else if (type === "teacher") {
+      const schoolId = parseInt(params.id);
+      if (isNaN(schoolId)) {
+        return NextResponse.json({ ok: false, error: "Invalid school ID" }, { status: 400 });
+      }
+
+      // Update school/teacher request status to "waitlist" or mark as rejected
+      const { data: currentSchool } = await supabase
+        .from("schools")
+        .select("status, teacher_name, email")
+        .eq("id", schoolId)
+        .single();
+
+      if (currentSchool) {
+        // Update status - could be "waitlist" or we could add a "rejected" status
+        await supabase
+          .from("schools")
+          .update({ 
+            status: "waitlist",
+            additional_notes: currentSchool.additional_notes 
+              ? `${currentSchool.additional_notes}\n\nRejection reason: ${reason}`
+              : `Rejection reason: ${reason}`
+          })
+          .eq("id", schoolId);
+
+        // Send email notification to teacher with rejection reason
+        if (currentSchool.email && currentSchool.teacher_name) {
+          await emailService.sendTeacherRequestWaitlist({
+            name: currentSchool.teacher_name,
+            email: currentSchool.email,
+            schoolName: currentSchool.name || "your school",
+            reason: reason
+          });
+        }
+      }
     }
 
     return NextResponse.json({ ok: true });

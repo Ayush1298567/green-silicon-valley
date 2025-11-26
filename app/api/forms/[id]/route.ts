@@ -34,15 +34,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
     }
 
-    // Get form with columns
-    const { data: columns, error: columnsError } = await supabase
-      .from("form_columns")
-      .select("*")
-      .eq("form_id", formId)
-      .order("column_index");
-
-    if (columnsError) throw columnsError;
-
     // Get response count
     const { count: responseCount } = await supabase
       .from("form_responses")
@@ -53,7 +44,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       ok: true,
       form: {
         ...form,
-        columns: columns || [],
         responseCount: responseCount || 0
       }
     });
@@ -83,7 +73,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
     const formId = params.id;
     const body = await req.json();
-    const { title, description, status, settings, notification_settings } = body;
+    const { title, description, schema, is_active } = body;
 
     // Check if user has access to this form
     const { data: form, error: formError } = await supabase
@@ -101,16 +91,18 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     // Update form
+    const updates: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (schema !== undefined) updates.schema = schema;
+    if (is_active !== undefined) updates.is_active = is_active;
+
     const { data: updatedForm, error: updateError } = await supabase
       .from("forms")
-      .update({
-        title: title || form.title,
-        description: description !== undefined ? description : form.description,
-        status: status || form.status,
-        settings: settings || form.settings,
-        notification_settings: notification_settings || form.notification_settings,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq("id", formId)
       .select()
       .single();

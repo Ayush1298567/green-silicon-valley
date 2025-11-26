@@ -28,19 +28,24 @@ export async function GET(request: Request) {
         // Ensure user exists in users table
         const { data: existingUser } = await supabase
           .from("users")
-          .select("role, user_category")
+          .select("role, user_category, needs_approval, status")
           .eq("id", userId)
           .single();
 
         if (!existingUser) {
-          // Create user with default role
+          // Create user with default role and approval status
+          // Teachers are auto-approved, interns and volunteers need approval
+          const defaultRole = "teacher";
+          const needsApproval = ["intern", "volunteer"].includes(defaultRole);
+
           await supabase.from("users").insert({
             id: userId,
             name: session.user.user_metadata?.full_name ?? email,
             email: email,
-            role: "teacher",
+            role: defaultRole,
             user_category: "guest",
-            status: "active",
+            status: needsApproval ? "pending_approval" : "active",
+            needs_approval: needsApproval,
           });
 
           // Track signup activity

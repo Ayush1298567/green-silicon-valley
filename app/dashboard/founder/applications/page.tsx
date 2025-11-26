@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Mail, Calendar, Check, X, Search, Filter, Download } from "lucide-react";
+import { UserPlus, Mail, Calendar, Check, X, Search, Filter, Download, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import ApplicationDetailModal from "@/components/admin/ApplicationDetailModal";
 
 interface Application {
   id: number;
-  type: "volunteer" | "intern";
+  type: "volunteer" | "intern" | "teacher";
   name: string;
   email: string;
   submittedDate: string;
@@ -14,15 +15,25 @@ interface Application {
   team_name?: string;
   group_members?: any[];
   department?: string;
+  // Teacher request fields
+  school_name?: string;
+  request_type?: string;
+  grade_levels?: string;
+  preferred_months?: string[];
+  topic_interests?: string[];
+  classroom_needs?: string;
+  additional_notes?: string;
 }
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState<"all" | "volunteer" | "intern">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "volunteer" | "intern" | "teacher">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadApplications();
@@ -64,8 +75,6 @@ export default function ApplicationsPage() {
   };
 
   const handleApprove = async (id: number, type: string) => {
-    if (!confirm(`Approve this ${type} application?`)) return;
-
     try {
       const res = await fetch(`/api/applications/${id}/approve`, {
         method: "POST",
@@ -75,6 +84,8 @@ export default function ApplicationsPage() {
 
       const data = await res.json();
       if (data.ok) {
+        setShowDetailModal(false);
+        setSelectedApplication(null);
         loadApplications();
       } else {
         alert(data.error || "Failed to approve application");
@@ -98,6 +109,8 @@ export default function ApplicationsPage() {
 
       const data = await res.json();
       if (data.ok) {
+        setShowDetailModal(false);
+        setSelectedApplication(null);
         loadApplications();
       } else {
         alert(data.error || "Failed to reject application");
@@ -106,6 +119,11 @@ export default function ApplicationsPage() {
       console.error("Error rejecting application:", error);
       alert("Failed to reject application");
     }
+  };
+
+  const handleViewDetails = (app: Application) => {
+    setSelectedApplication(app);
+    setShowDetailModal(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -160,6 +178,7 @@ export default function ApplicationsPage() {
           <option value="all">All Types</option>
           <option value="volunteer">Volunteers</option>
           <option value="intern">Interns</option>
+          <option value="teacher">Teacher Requests</option>
         </select>
         <select
           value={statusFilter}
@@ -195,7 +214,11 @@ export default function ApplicationsPage() {
                     <h3 className="text-xl font-semibold text-gsv-charcoal">{app.name}</h3>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        app.type === "intern" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"
+                        app.type === "intern" 
+                          ? "bg-purple-100 text-purple-800" 
+                          : app.type === "teacher"
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-green-100 text-green-800"
                       }`}
                     >
                       {app.type}
@@ -219,6 +242,16 @@ export default function ApplicationsPage() {
                         <span>Department: {app.department}</span>
                       </div>
                     )}
+                    {app.school_name && (
+                      <div className="flex items-center gap-1">
+                        <span>School: {app.school_name}</span>
+                      </div>
+                    )}
+                    {app.grade_levels && (
+                      <div className="flex items-center gap-1">
+                        <span>Grades: {app.grade_levels}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {formatDistanceToNow(new Date(app.submittedDate), { addSuffix: true })}
@@ -232,11 +265,46 @@ export default function ApplicationsPage() {
                       </span>
                     </div>
                   )}
+                  {app.type === "teacher" && (
+                    <div className="mt-3 space-y-2 text-sm">
+                      {app.request_type && (
+                        <div>
+                          <span className="font-medium text-gsv-charcoal">Request Type: </span>
+                          <span className="text-gsv-gray">{app.request_type}</span>
+                        </div>
+                      )}
+                      {app.preferred_months && app.preferred_months.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gsv-charcoal">Preferred Months: </span>
+                          <span className="text-gsv-gray">{app.preferred_months.join(", ")}</span>
+                        </div>
+                      )}
+                      {app.topic_interests && app.topic_interests.length > 0 && (
+                        <div>
+                          <span className="font-medium text-gsv-charcoal">Topic Interests: </span>
+                          <span className="text-gsv-gray">{app.topic_interests.join(", ")}</span>
+                        </div>
+                      )}
+                      {app.classroom_needs && (
+                        <div>
+                          <span className="font-medium text-gsv-charcoal">Classroom Needs: </span>
+                          <span className="text-gsv-gray">{app.classroom_needs}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {app.status === "pending" && (
                 <div className="flex gap-2 pt-4 border-t">
+                  <button
+                    onClick={() => handleViewDetails(app)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Details
+                  </button>
                   <button
                     onClick={() => handleApprove(app.id, app.type)}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
@@ -251,8 +319,17 @@ export default function ApplicationsPage() {
                     <X className="w-4 h-4" />
                     Reject
                   </button>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                    Request More Info
+                </div>
+              )}
+              
+              {app.status !== "pending" && (
+                <div className="flex gap-2 pt-4 border-t">
+                  <button
+                    onClick={() => handleViewDetails(app)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Details
                   </button>
                 </div>
               )}
@@ -260,6 +337,18 @@ export default function ApplicationsPage() {
           ))}
         </div>
       )}
+
+      {/* Application Detail Modal */}
+      <ApplicationDetailModal
+        application={selectedApplication}
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedApplication(null);
+        }}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </div>
   );
 }

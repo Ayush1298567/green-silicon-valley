@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { getDashboardPathForRole, type UserRole } from "@/lib/auth/roles";
+import { emailService } from "@/lib/email/email-service";
+import { actionItemsService } from "@/lib/actionItemsService";
 
 export async function POST(
   req: Request,
@@ -53,6 +55,23 @@ export async function POST(
           changed_by: session.user.id
         });
 
+        // Update related action item
+        try {
+          await actionItemsService.onApplicationStatusChanged('volunteer', volunteerId.toString(), 'approved', session.user.id);
+        } catch (actionError) {
+          console.error("Error updating action item for volunteer approval:", actionError);
+        }
+
+        // Get volunteer details for email
+        const { data: volunteerData } = await supabase
+          .from("volunteers")
+          .select(`
+            team_name,
+            user:users!volunteers_user_id_fkey(name, email)
+          `)
+          .eq("id", volunteerId)
+          .single();
+
         // Create notification for volunteer team members
         const { data: teamMembers } = await supabase
           .from("team_members")
@@ -71,12 +90,56 @@ export async function POST(
           }));
 
           await supabase.from("notifications").insert(notifications);
+
+          // Send email to primary contact
+          if (volunteerData?.user) {
+            await emailService.sendVolunteerApplicationApproval({
+              name: volunteerData.user.name || "Volunteer",
+              email: volunteerData.user.email,
+              teamName: volunteerData.team_name || undefined
+            });
+          }
         }
       }
     } else if (type === "intern") {
       // Handle intern approval
       // This would typically involve assigning them to a department/project
       // For now, we'll just acknowledge it
+    } else if (type === "teacher") {
+      const schoolId = parseInt(params.id);
+      if (isNaN(schoolId)) {
+        return NextResponse.json({ ok: false, error: "Invalid school ID" }, { status: 400 });
+      }
+
+      // Update school/teacher request status to "contacted" (first step) or "scheduled"
+      const { data: currentSchool } = await supabase
+        .from("schools")
+        .select("status, teacher_name, email")
+        .eq("id", schoolId)
+        .single();
+
+      if (currentSchool) {
+        // Update status to contacted (or scheduled if they want to schedule immediately)
+        await supabase
+          .from("schools")
+          .update({ 
+            status: "contacted",
+            contacted_at: new Date().toISOString()
+          })
+          .eq("id", schoolId);
+
+        // Send email notification to teacher
+        if (currentSchool.email && currentSchool.teacher_name) {
+          await emailService.sendTeacherRequestContact({
+            name: currentSchool.teacher_name,
+            email: currentSchool.email,
+            schoolName: currentSchool.name || "your school",
+            requestType: currentSchool.request_type || undefined
+          });
+        }
+
+        // TODO: Create task in Outreach dashboard for scheduling
+      }
     }
 
     return NextResponse.json({ ok: true });

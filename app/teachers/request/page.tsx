@@ -424,7 +424,7 @@ export default function TeacherRequestPage() {
               )}
             </button>
             <p className="text-sm text-gray-500 text-center mt-3">
-              We'll review your request and contact you within 5-7 business days to schedule your presentation.
+              We&apos;ll review your request and contact you within 5-7 business days to schedule your presentation.
             </p>
           </div>
         </form>

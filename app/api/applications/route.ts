@@ -92,6 +92,33 @@ export async function GET(req: Request) {
       }
     }
 
+    // Get teacher requests (from schools table where status is pending/contacted)
+    const { data: teacherRequests } = await supabase
+      .from("schools")
+      .select("id, name, teacher_name, email, status, submitted_at, request_type, grade_levels, preferred_months, topic_interests, classroom_needs, additional_notes")
+      .in("status", ["pending", "contacted", "scheduled", "waitlist"])
+      .order("submitted_at", { ascending: false });
+
+    if (teacherRequests) {
+      for (const school of teacherRequests) {
+        applications.push({
+          id: school.id,
+          type: "teacher" as const,
+          name: school.teacher_name || school.name || "Unknown Teacher",
+          email: school.email || "",
+          submittedDate: school.submitted_at || new Date().toISOString(),
+          status: school.status || "pending",
+          school_name: school.name,
+          request_type: school.request_type,
+          grade_levels: school.grade_levels,
+          preferred_months: school.preferred_months,
+          topic_interests: school.topic_interests,
+          classroom_needs: school.classroom_needs,
+          additional_notes: school.additional_notes
+        });
+      }
+    }
+
     return NextResponse.json({ ok: true, applications });
   } catch (error: any) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

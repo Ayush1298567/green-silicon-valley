@@ -1,0 +1,594 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Green Silicon Valley API",
+    "version": "1.0.0",
+    "description": "Comprehensive API for Green Silicon Valley platform - Environmental STEM Education Management System",
+    "contact": {
+      "name": "API Support",
+      "email": "support@greensiliconvalley.org"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Development server"
+    },
+    {
+      "url": "https://greensiliconvalley.org/api",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and authorization"
+    },
+    {
+      "name": "Users",
+      "description": "User management and profiles"
+    },
+    {
+      "name": "Volunteers",
+      "description": "Volunteer management and operations"
+    },
+    {
+      "name": "Presentations",
+      "description": "Presentation scheduling and management"
+    },
+    {
+      "name": "Teachers",
+      "description": "Teacher requests and resources"
+    },
+    {
+      "name": "Content",
+      "description": "Content management system"
+    },
+    {
+      "name": "Search",
+      "description": "Advanced search functionality"
+    },
+    {
+      "name": "Automation",
+      "description": "Automated workflows and tasks"
+    },
+    {
+      "name": "Notifications",
+      "description": "User notifications and alerts"
+    },
+    {
+      "name": "Analytics",
+      "description": "Analytics and reporting"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "session": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/volunteers/apply": {
+      "post": {
+        "tags": ["Volunteers"],
+        "summary": "Submit volunteer application",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolunteerApplication"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application submitted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/volunteer-hours/submit": {
+      "post": {
+        "tags": ["Volunteers"],
+        "summary": "Submit volunteer hours",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["hours", "presentationId"],
+                "properties": {
+                  "hours": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 20
+                  },
+                  "presentationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "feedback": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hours submitted successfully"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/teachers/request": {
+      "post": {
+        "tags": ["Teachers"],
+        "summary": "Submit teacher presentation request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request submitted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Advanced search across all content types",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2
+            },
+            "description": "Search query"
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated list of content types to search"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["relevance", "date", "title"],
+              "default": "relevance"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/onboarding-packet": {
+      "post": {
+        "tags": ["Automation"],
+        "summary": "Generate onboarding packet for volunteer",
+        "security": [{"BearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["volunteerId"],
+                "properties": {
+                  "volunteerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Onboarding packet generated"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/monitoring": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get system performance metrics",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["summary", "metrics", "health"]
+            },
+            "default": "summary"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Performance metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceMetrics"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["volunteer", "teacher", "intern", "founder", "admin"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "pending"]
+          }
+        }
+      },
+      "VolunteerApplication": {
+        "type": "object",
+        "required": ["email", "name", "phone"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TeacherRequest": {
+        "type": "object",
+        "required": ["contactName", "contactEmail", "schoolName", "gradeLevel"],
+        "properties": {
+          "contactName": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "schoolName": {
+            "type": "string"
+          },
+          "gradeLevel": {
+            "type": "string"
+          },
+          "studentCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "preferredDates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        }
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "facets": {
+            "$ref": "#/components/schemas/SearchFacets"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "queryTime": {
+            "type": "integer",
+            "description": "Query execution time in milliseconds"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["presentation", "volunteer", "teacher", "school", "event", "faq", "blog", "resource", "team"]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "relevanceScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "SearchFacets": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "categories": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "PerformanceMetrics": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "totalMetrics": {
+                "type": "integer"
+              },
+              "totalErrors": {
+                "type": "integer"
+              },
+              "apiSuccessRate": {
+                "type": "number"
+              }
+            }
+          },
+          "performance": {
+            "type": "object",
+            "properties": {
+              "averagePageLoad": {
+                "type": "integer"
+              },
+              "averageApiResponse": {
+                "type": "integer"
+              }
+            }
+          },
+          "errors": {
+            "type": "object",
+            "properties": {
+              "criticalErrors": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Validation error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UnauthorizedError": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ForbiddenError": {
+        "description": "Insufficient permissions",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

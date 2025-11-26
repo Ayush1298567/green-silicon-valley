@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDashboardPathForRole, type UserRole } from "./roles";
+import { firstLoginDetector } from "./firstLogin";
+import { firstLoginDetector } from "./firstLogin";
 
 /**
  * Determines the appropriate route for a user after login/signup
@@ -22,15 +24,25 @@ export async function determineUserRoute(
       return preferences.default_redirect_path;
     }
 
-    // 2. Check user role and category
+    // 2. Check first login status and routing requirements
+    const firstLoginStatus = await firstLoginDetector.checkFirstLoginStatus(userId);
+
+    // If user needs to complete first login flow, redirect accordingly
+    if (firstLoginStatus.redirectPath) {
+      return firstLoginStatus.redirectPath;
+    }
+
+    // Get user details for role-based routing
     const { data: user } = await supabase
       .from("users")
-      .select("role, user_category")
+      .select("role, user_category, subrole, department")
       .eq("id", userId)
       .single();
 
     const role = user?.role as UserRole | undefined;
     const category = user?.user_category;
+    const subrole = user?.subrole;
+    const department = user?.department;
 
     // 3. Check signup sources to determine context
     const { data: signupSources } = await supabase

@@ -24,7 +24,6 @@ export async function GET(req: Request) {
       .from("forms")
       .select(`
         *,
-        form_columns(*),
         form_responses(count)
       `)
       .eq("created_by", session.user.id)
@@ -36,7 +35,6 @@ export async function GET(req: Request) {
         .from("forms")
         .select(`
           *,
-          form_columns(*),
           form_responses(count),
           users!forms_created_by_fkey(name, email)
         `)
@@ -86,73 +84,180 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Title is required" }, { status: 400 });
     }
 
-    // Create the form
+    // Create default schema based on template
+    let schema = {
+      fields: []
+    };
+
+    if (template === "volunteer_registration") {
+      schema.fields = [
+        {
+          id: "full_name",
+          type: "text",
+          label: "Full Name",
+          placeholder: "Enter your full name",
+          required: true
+        },
+        {
+          id: "email",
+          type: "email",
+          label: "Email Address",
+          placeholder: "Enter your email",
+          required: true
+        },
+        {
+          id: "phone",
+          type: "text",
+          label: "Phone Number",
+          placeholder: "Enter your phone number",
+          required: false
+        },
+        {
+          id: "school_org",
+          type: "text",
+          label: "School/Organization",
+          placeholder: "Enter your school or organization",
+          required: false
+        },
+        {
+          id: "grade_level",
+          type: "select",
+          label: "Grade Level",
+          required: false,
+          options: ["9th", "10th", "11th", "12th", "College", "Other"]
+        },
+        {
+          id: "interests",
+          type: "multiselect",
+          label: "Areas of Interest",
+          required: false,
+          options: ["Environmental Science", "STEM Education", "Community Outreach", "Event Planning", "Social Media", "Fundraising"]
+        },
+        {
+          id: "availability",
+          type: "multiselect",
+          label: "Availability",
+          required: false,
+          options: ["Weekdays after school", "Weekends", "Summer break", "School holidays"]
+        },
+        {
+          id: "experience",
+          type: "textarea",
+          label: "Previous Volunteering Experience",
+          placeholder: "Tell us about your previous volunteering experience",
+          required: false
+        },
+        {
+          id: "how_heard",
+          type: "select",
+          label: "How did you hear about us?",
+          required: false,
+          options: ["School", "Social media", "Friend/family", "Website", "Event", "Other"]
+        }
+      ];
+    } else if (template === "event_feedback") {
+      schema.fields = [
+        {
+          id: "event_name",
+          type: "text",
+          label: "Event Name",
+          placeholder: "Enter the event name",
+          required: true
+        },
+        {
+          id: "event_date",
+          type: "date",
+          label: "Event Date",
+          required: true
+        },
+        {
+          id: "your_name",
+          type: "text",
+          label: "Your Name",
+          placeholder: "Enter your name",
+          required: false
+        },
+        {
+          id: "rating",
+          type: "select",
+          label: "Overall Rating",
+          required: true,
+          options: ["5 - Excellent", "4 - Very Good", "3 - Good", "2 - Fair", "1 - Poor"]
+        },
+        {
+          id: "liked_most",
+          type: "textarea",
+          label: "What did you like most?",
+          placeholder: "Tell us what you liked most about the event",
+          required: false
+        },
+        {
+          id: "improvements",
+          type: "textarea",
+          label: "What could be improved?",
+          placeholder: "Any suggestions for improvement?",
+          required: false
+        },
+        {
+          id: "participate_again",
+          type: "select",
+          label: "Would you participate again?",
+          required: true,
+          options: ["Definitely", "Probably", "Maybe", "Probably not", "Definitely not"]
+        },
+        {
+          id: "comments",
+          type: "textarea",
+          label: "Additional Comments",
+          placeholder: "Any additional comments or feedback?",
+          required: false
+        }
+      ];
+    } else {
+      // Basic template
+      schema.fields = [
+        {
+          id: "full_name",
+          type: "text",
+          label: "Full Name",
+          placeholder: "Enter your full name",
+          required: true
+        },
+        {
+          id: "email",
+          type: "email",
+          label: "Email Address",
+          placeholder: "Enter your email",
+          required: true
+        },
+        {
+          id: "message",
+          type: "textarea",
+          label: "Message",
+          placeholder: "Enter your message",
+          required: false
+        }
+      ];
+    }
+
+    // Create the form with new schema
     const { data: form, error: formError } = await supabase
       .from("forms")
       .insert({
         title,
         description: description || "",
+        schema,
         created_by: session.user.id,
-        status: "draft"
+        is_active: false
       })
       .select()
       .single();
 
     if (formError) throw formError;
 
-    // Create default columns based on template or basic structure
-    let columns = [];
-
-    if (template === "volunteer_registration") {
-      columns = [
-        { title: "Full Name", field_type: "text", required: true, column_index: 0 },
-        { title: "Email", field_type: "email", required: true, column_index: 1 },
-        { title: "Phone", field_type: "text", required: false, column_index: 2 },
-        { title: "School/Organization", field_type: "text", required: false, column_index: 3 },
-        { title: "Grade Level", field_type: "select", required: false, column_index: 4, options: ["9th", "10th", "11th", "12th", "College", "Other"] },
-        { title: "Areas of Interest", field_type: "multiselect", required: false, column_index: 5, options: ["Environmental Science", "STEM Education", "Community Outreach", "Event Planning", "Social Media", "Fundraising"] },
-        { title: "Availability", field_type: "multiselect", required: false, column_index: 6, options: ["Weekdays after school", "Weekends", "Summer break", "School holidays"] },
-        { title: "Previous volunteering experience", field_type: "textarea", required: false, column_index: 7 },
-        { title: "How did you hear about us?", field_type: "select", required: false, column_index: 8, options: ["School", "Social media", "Friend/family", "Website", "Event", "Other"] }
-      ];
-    } else if (template === "event_feedback") {
-      columns = [
-        { title: "Event Name", field_type: "text", required: true, column_index: 0 },
-        { title: "Event Date", field_type: "date", required: true, column_index: 1 },
-        { title: "Your Name", field_type: "text", required: false, column_index: 2 },
-        { title: "Overall Rating", field_type: "rating", required: true, column_index: 3 },
-        { title: "What did you like most?", field_type: "textarea", required: false, column_index: 4 },
-        { title: "What could be improved?", field_type: "textarea", required: false, column_index: 5 },
-        { title: "Would you participate again?", field_type: "select", required: true, column_index: 6, options: ["Definitely", "Probably", "Maybe", "Probably not", "Definitely not"] },
-        { title: "Additional comments", field_type: "textarea", required: false, column_index: 7 }
-      ];
-    } else {
-      // Basic template
-      columns = [
-        { title: "Full Name", field_type: "text", required: true, column_index: 0 },
-        { title: "Email", field_type: "email", required: true, column_index: 1 },
-        { title: "Message", field_type: "textarea", required: false, column_index: 2 }
-      ];
-    }
-
-    // Insert columns
-    for (const column of columns) {
-      await supabase
-        .from("form_columns")
-        .insert({
-          form_id: form.id,
-          ...column,
-          validation_rules: {},
-          formatting: column.options ? { options: column.options } : {}
-        });
-    }
-
     return NextResponse.json({
       ok: true,
-      form: {
-        ...form,
-        columns
-      },
+      form,
       message: "Form created successfully"
     });
 

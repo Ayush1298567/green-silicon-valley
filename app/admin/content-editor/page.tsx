@@ -4,6 +4,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Save, RefreshCw, Eye, Edit3, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfessionalButton from "@/components/ui/ProfessionalButton";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 interface ContentBlock {
   id: string;
@@ -301,12 +302,11 @@ export default function ContentEditorPage() {
                 {/* Block Content */}
                 <div className="p-6">
                   {editingBlock === block.id ? (
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      rows={6}
-                      className="w-full px-4 py-3 border border-gsv-slate-300 rounded-xl focus:ring-2 focus:ring-gsv-green focus:border-transparent transition-all font-mono text-sm"
-                      placeholder="Enter content..."
+                    <RichTextEditor
+                      content={editContent}
+                      onChange={setEditContent}
+                      placeholder="Enter rich content..."
+                      className="min-h-[300px]"
                     />
                   ) : previewMode ? (
                     <div className="prose max-w-none">

@@ -383,7 +383,14 @@ export default function AIChatInterface({ isOpen, onClose }: AIChatInterfaceProp
               className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:bg-blue-200 transition-colors"
               type="button"
             >
-              📝 New Form
+              📝 Create Form
+            </button>
+            <button
+              onClick={() => handleSendMessage("Set up automated email workflow for new volunteers")}
+              className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full hover:bg-indigo-200 transition-colors"
+              type="button"
+            >
+              ⚡ Create Workflow
             </button>
             <button
               onClick={() => handleSendMessage("Show me this month's analytics")}

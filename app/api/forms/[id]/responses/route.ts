@@ -39,21 +39,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     // Get responses
-    let query = supabase
+    const { data: responses, error: responsesError } = await supabase
       .from("form_responses")
       .select(`
-        *,
+        id,
+        form_id,
+        responses,
+        submitted_at,
+        submitted_by,
         users!form_responses_submitted_by_fkey(name, email)
       `)
       .eq("form_id", formId)
       .order("submitted_at", { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (status !== "all") {
-      query = query.eq("status", status);
-    }
-
-    const { data: responses, error: responsesError } = await query;
 
     if (responsesError) throw responsesError;
 
@@ -93,45 +91,37 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: false, error: "Responses data required" }, { status: 400 });
     }
 
-    // Verify form exists and is published
+    // Verify form exists and is active
     const { data: form, error: formError } = await supabase
       .from("forms")
-      .select("status, notification_settings")
+      .select("schema, notification_settings, title")
       .eq("id", formId)
+      .eq("is_active", true)
       .single();
 
     if (formError || !form) {
-      return NextResponse.json({ ok: false, error: "Form not found" }, { status: 404 });
+      return NextResponse.json({ ok: false, error: "Form not found or inactive" }, { status: 404 });
     }
 
-    if (form.status !== "published") {
-      return NextResponse.json({ ok: false, error: "Form is not currently accepting responses" }, { status: 400 });
-    }
+    // Validate responses against schema
+    const validationErrors: string[] = [];
+    const schema = form.schema as { fields: any[] };
 
-    // Get the highest row index for this form
-    const { data: lastResponse } = await supabase
-      .from("form_responses")
-      .select("row_index")
-      .eq("form_id", formId)
-      .order("row_index", { ascending: false })
-      .limit(1)
-      .single();
+    if (schema?.fields) {
+      for (const field of schema.fields) {
+        const responseValue = responses[field.id];
 
-    const nextRowIndex = (lastResponse?.row_index || 0) + 1;
+        // Check required fields
+        if (field.required && (!responseValue || responseValue.toString().trim() === '')) {
+          validationErrors.push(`${field.label} is required`);
+        }
 
-    // Get form columns to validate responses
-    const { data: columns } = await supabase
-      .from("form_columns")
-      .select("id, title, field_type, required, validation_rules")
-      .eq("form_id", formId)
-      .order("column_index");
-
-    // Validate required fields
-    const validationErrors = [];
-    for (const column of columns || []) {
-      const responseValue = responses[column.title];
-      if (column.required && (!responseValue || responseValue.toString().trim() === '')) {
-        validationErrors.push(`${column.title} is required`);
+        // Additional validation based on field type
+        if (responseValue) {
+          if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responseValue)) {
+            validationErrors.push(`${field.label} must be a valid email address`);
+          }
+        }
       }
     }
 
@@ -143,15 +133,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }, { status: 400 });
     }
 
+    // Get user info if authenticated
+    let submittedByUser = submittedBy;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        submittedByUser = user.id;
+      }
+    } catch (error) {
+      // User not authenticated, continue with submittedBy from request
+    }
+
     // Create response record
     const { data: responseRecord, error: responseError } = await supabase
       .from("form_responses")
       .insert({
         form_id: formId,
-        row_index: nextRowIndex,
-        response_data: responses,
-        submitted_by: submittedBy || null,
-        status: "unread"
+        responses,
+        submitted_by: submittedByUser
       })
       .select()
       .single();
@@ -160,7 +159,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // Send notifications if configured
     if (form.notification_settings?.emailNotifications) {
-      await sendFormNotification(supabase, formId, responseRecord.id, responses);
+      await sendFormNotification(supabase, formId, responseRecord.id, responses, form.title);
     }
 
     return NextResponse.json({
@@ -178,44 +177,42 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 }
 
-async function sendFormNotification(supabase: any, formId: string, responseId: string, responses: any) {
+async function sendFormNotification(supabase: any, formId: string, responseId: string, responses: any, formTitle: string) {
   try {
-    // Get form details
+    // Get form details and creator
     const { data: form } = await supabase
       .from("forms")
-      .select("title, notification_settings")
+      .select("created_by")
       .eq("id", formId)
       .single();
 
-    if (!form?.notification_settings?.notifyUsers?.length) return;
+    if (!form?.created_by) return;
 
-    // Get response summary
+    // Get response summary (first few fields)
     const responseSummary = Object.entries(responses)
-      .slice(0, 5) // First 5 fields
-      .map(([key, value]) => `${key}: ${value}`)
+      .slice(0, 3) // First 3 fields for brevity
+      .map(([key, value]) => {
+        const displayValue = Array.isArray(value) ? value.join(", ") : String(value);
+        return `${key}: ${displayValue}`;
+      })
       .join('\n');
 
-    // Send notifications to configured users
-    for (const userId of form.notification_settings.notifyUsers) {
-      await supabase.from("notifications").insert({
-        user_id: userId,
-        notification_type: "form_response",
-        title: `New response to "${form.title}"`,
-        message: `A new form response has been submitted.\n\n${responseSummary}${Object.keys(responses).length > 5 ? '\n\n...and more fields' : ''}`,
-        action_url: `/admin/forms/${formId}/responses`,
-        metadata: {
-          form_id: formId,
-          response_id: responseId,
-          response_count: Object.keys(responses).length
-        }
-      });
-    }
+    // Send notification to form creator
+    await supabase.from("notifications").insert({
+      user_id: form.created_by,
+      notification_type: "form_response",
+      title: `New response to "${formTitle}"`,
+      message: `A new form response has been submitted.\n\n${responseSummary}${Object.keys(responses).length > 3 ? '\n\n...and more fields' : ''}`,
+      action_url: `/admin/forms/${formId}/responses`,
+      metadata: {
+        form_id: formId,
+        response_id: responseId,
+        response_count: Object.keys(responses).length
+      }
+    });
 
-    // Send email notifications if configured
-    if (form.notification_settings.emailNotifications) {
-      // Email sending logic would go here
-      console.log("Email notification would be sent for form response");
-    }
+    // Additional email notification could be added here
+    console.log("Form response notification sent");
 
   } catch (error) {
     console.error("Failed to send form notification:", error);

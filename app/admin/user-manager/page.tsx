@@ -267,8 +267,30 @@ export default function UserManagerPage() {
       <div className="container max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gsv-charcoal mb-2">User Management</h1>
-          <p className="text-gsv-slate-600">Manage all users, roles, and permissions</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gsv-charcoal mb-2">User Management</h1>
+              <p className="text-gsv-slate-600">Manage all users, roles, and permissions</p>
+            </div>
+            <div className="flex gap-3">
+              <ProfessionalButton
+                variant="secondary"
+                size="md"
+                icon={<Clock className="w-4 h-4" />}
+                onClick={() => router.push("/admin/user-approvals")}
+              >
+                Pending Approvals
+              </ProfessionalButton>
+              <ProfessionalButton
+                variant="primary"
+                size="md"
+                icon={<UserPlus className="w-4 h-4" />}
+                onClick={() => router.push("/admin/users/create")}
+              >
+                Create User
+              </ProfessionalButton>
+            </div>
+          </div>
         </div>
 
         {/* Message Toast */}

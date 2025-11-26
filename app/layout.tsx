@@ -7,6 +7,8 @@ import SkipToContent from "@/components/SkipToContent";
 import TaskSidePanelWrapper from "@/components/TaskSidePanelWrapper";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider } from "@/lib/theme-context";
+import NewsletterBar from "@/components/newsletter/NewsletterBar";
+import PerformanceMonitor from "@/components/monitoring/PerformanceMonitor";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -54,6 +56,8 @@ export default function RootLayout({
               <main id="main-content" className="flex-1" role="main">{children}</main>
               <Footer />
               <TaskSidePanelWrapper />
+              <NewsletterBar variant="modal" autoShow={true} delay={10000} />
+              <PerformanceMonitor />
             </div>
           </ToastProvider>
         </ThemeProvider>

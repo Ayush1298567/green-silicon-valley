@@ -1,5 +1,7 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import type { UserRole } from "./roles";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 export async function getUserRoleServer(
   supabase: SupabaseClient
@@ -22,6 +24,37 @@ export async function isFounderServer(
 ): Promise<boolean> {
   const role = await getUserRoleServer(supabase);
   return role === "founder";
+}
+
+/**
+ * Get the authenticated user from a request (for API routes)
+ * Returns the full user profile from the users table, or null if not authenticated
+ */
+export async function getUserFromRequest() {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return null;
+    }
+    
+    // Get full user profile from users table
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+    
+    if (profileError || !profile) {
+      return null;
+    }
+    
+    return profile;
+  } catch (error) {
+    console.error("Error getting user from request:", error);
+    return null;
+  }
 }
 
 

@@ -1,108 +1,96 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { NextRequest, NextResponse } from 'next/server';
+import { advancedSearch } from '@/lib/search/advanced-search';
 
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q") || "";
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q') || '';
+    const types = searchParams.get('types')?.split(',') as any;
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const sortBy = searchParams.get('sortBy') as 'relevance' | 'date' | 'title' || 'relevance';
+    const fuzzyThreshold = parseFloat(searchParams.get('fuzzyThreshold') || '0.3');
 
-    if (query.length < 2) {
-      return NextResponse.json({ ok: true, results: [] });
-    }
-
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    const results: any[] = [];
-    const searchTerm = `%${query.toLowerCase()}%`;
-
-    // Search presentations
-    const { data: presentations } = await supabase
-      .from("presentations")
-      .select("id, topic, scheduled_date, status")
-      .or(`topic.ilike.${searchTerm},status.ilike.${searchTerm}`)
-      .limit(5);
-
-    if (presentations) {
-      presentations.forEach((p) => {
-        results.push({
-          type: "presentation",
-          id: p.id,
-          title: p.topic || `Presentation #${p.id}`,
-          description: `Scheduled: ${p.scheduled_date ? new Date(p.scheduled_date).toLocaleDateString() : "TBD"} • Status: ${p.status}`,
-          url: `/dashboard/founder/presentations/${p.id}`
-        });
-      });
-    }
-
-    // Search volunteers (founders/interns only)
-    if (session) {
-      const { data: userRow } = await supabase.from("users").select("role").eq("id", session.user.id).single();
-      const role = userRow?.role || "volunteer";
-      
-      if (role === "founder" || role === "intern") {
-        const { data: volunteers } = await supabase
-          .from("volunteers")
-          .select("id, team_name")
-          .ilike("team_name", searchTerm)
-          .limit(5);
-
-        if (volunteers) {
-          volunteers.forEach((v) => {
-            results.push({
-              type: "volunteer",
-              id: v.id,
-              title: v.team_name || `Team #${v.id}`,
-              description: "Volunteer team",
-              url: `/dashboard/founder/volunteers/${v.id}`
-            });
-          });
-        }
-
-        // Search schools
-        const { data: schools } = await supabase
-          .from("schools")
-          .select("id, name, district")
-          .or(`name.ilike.${searchTerm},district.ilike.${searchTerm}`)
-          .limit(5);
-
-        if (schools) {
-          schools.forEach((s) => {
-            results.push({
-              type: "school",
-              id: s.id,
-              title: s.name,
-              description: s.district || "School",
-              url: `/dashboard/founder/schools/${s.id}`
-            });
-          });
-        }
+    // Parse filters from query params
+    const filters: Record<string, any> = {};
+    searchParams.forEach((value, key) => {
+      if (key.startsWith('filter_')) {
+        const filterKey = key.replace('filter_', '');
+        filters[filterKey] = value;
       }
-    }
+    });
 
-    // Search blog posts (public)
-    const { data: posts } = await supabase
-      .from("blog_posts")
-      .select("id, title, excerpt")
-      .or(`title.ilike.${searchTerm},excerpt.ilike.${searchTerm}`)
-      .eq("published", true)
-      .limit(5);
-
-    if (posts) {
-      posts.forEach((post) => {
-        results.push({
-          type: "blog post",
-          id: post.id,
-          title: post.title,
-          description: post.excerpt || "",
-          url: `/blog/${post.id}`
-        });
+    if (!query || query.length < 2) {
+      return NextResponse.json({
+        results: [],
+        facets: {
+          types: {},
+          categories: {},
+          tags: {},
+          dateRanges: {}
+        },
+        total: 0,
+        queryTime: 0
       });
     }
 
-    return NextResponse.json({ ok: true, results });
-  } catch (error: any) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    const searchResults = await advancedSearch.search({
+      query,
+      types,
+      filters: Object.keys(filters).length > 0 ? filters : undefined,
+      limit,
+      offset,
+      sortBy,
+      fuzzyThreshold
+    });
+
+    return NextResponse.json(searchResults);
+
+  } catch (error) {
+    console.error('Search API error:', error);
+    return NextResponse.json(
+      { error: 'Search failed', results: [], facets: {}, total: 0, queryTime: 0 },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { query, types, filters, limit, offset, sortBy, fuzzyThreshold } = body;
+
+    if (!query || query.length < 2) {
+      return NextResponse.json({
+        results: [],
+        facets: {
+          types: {},
+          categories: {},
+          tags: {},
+          dateRanges: {}
+        },
+        total: 0,
+        queryTime: 0
+      });
+    }
+
+    const searchResults = await advancedSearch.search({
+      query,
+      types,
+      filters,
+      limit: limit || 20,
+      offset: offset || 0,
+      sortBy: sortBy || 'relevance',
+      fuzzyThreshold: fuzzyThreshold || 0.3
+    });
+
+    return NextResponse.json(searchResults);
+
+  } catch (error) {
+    console.error('Search API error:', error);
+    return NextResponse.json(
+      { error: 'Search failed', results: [], facets: {}, total: 0, queryTime: 0 },
+      { status: 500 }
+    );
   }
 }

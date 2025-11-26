@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email";
 import { teacherRequestConfirmation } from "@/lib/emailTemplates";
 import { resolveEmailTemplate } from "@/lib/emailTemplatesDb";
 import { trackUserActivity } from "@/lib/auth/routing";
+import { actionItemsService } from "@/lib/actionItemsService";
 
 export async function POST(req: Request) {
   try {
@@ -94,6 +95,14 @@ export async function POST(req: Request) {
         );
       }
       schoolId = newSchool.id;
+    }
+
+    // Create action item for teacher request review
+    try {
+      await actionItemsService.onTeacherRequestSubmitted(schoolId, school_name);
+    } catch (actionError) {
+      console.error("Error creating action item for teacher request:", actionError);
+      // Don't fail the submission if action item creation fails
     }
 
     // Track form submission activity

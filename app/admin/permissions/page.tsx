@@ -1,433 +1,601 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Shield, Users, Check, X, Search, Plus, Edit3, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import ProfessionalButton from "@/components/ui/ProfessionalButton";
+import {
+  Users,
+  Shield,
+  Key,
+  Check,
+  X,
+  Clock,
+  UserPlus,
+  Search,
+  Filter,
+  MoreVertical,
+  Edit3,
+  Trash2,
+  Plus,
+  Calendar,
+  AlertTriangle
+} from "lucide-react";
+import { permissionEvaluator } from "@/lib/permissions/permissionEvaluator";
 
-interface Permission {
+interface RolePermissions {
+  [role: string]: Array<{
+    permissionKey: string;
+    granted: boolean;
+    resourceScope?: Record<string, any>;
+  }>;
+}
+
+interface CustomPermission {
   id: string;
-  name: string;
-  description: string;
-  category: string;
+  user_id: string;
+  permission_type: string;
+  resource_id: string | null;
+  permissions: Record<string, boolean>;
+  granted_by: string;
+  granted_at: string;
+  expires_at?: string;
+  notes?: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+  granter?: {
+    name: string;
+    email: string;
+  };
 }
 
-interface UserPermissions {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role: string;
-  permissions: string[];
-}
-
+const ROLES = ['founder', 'intern', 'volunteer', 'teacher', 'partner'];
 const PERMISSION_CATEGORIES = {
-  website: {
-    label: "Website Management",
-    permissions: [
-      { id: "website.edit", name: "Edit Website", description: "Use visual website builder" },
-      { id: "website.publish", name: "Publish Changes", description: "Make changes live" },
-      { id: "website.settings", name: "Website Settings", description: "Change colors, fonts, logo" },
-      { id: "website.social", name: "Social Media Links", description: "Update social media URLs" }
-    ]
-  },
-  content: {
-    label: "Content Management",
-    permissions: [
-      { id: "content.edit", name: "Edit Content", description: "Edit text and images" },
-      { id: "content.create", name: "Create Content", description: "Add new content blocks" },
-      { id: "content.delete", name: "Delete Content", description: "Remove content blocks" },
-      { id: "content.preview", name: "Preview Content", description: "View unpublished content" }
-    ]
-  },
-  blog: {
-    label: "Blog Management",
-    permissions: [
-      { id: "blog.create", name: "Create Posts", description: "Write new blog posts" },
-      { id: "blog.edit", name: "Edit Posts", description: "Edit existing posts" },
-      { id: "blog.publish", name: "Publish Posts", description: "Make posts public" },
-      { id: "blog.delete", name: "Delete Posts", description: "Remove blog posts" }
-    ]
-  },
-  media: {
-    label: "Media Management",
-    permissions: [
-      { id: "media.upload", name: "Upload Media", description: "Upload images and files" },
-      { id: "media.delete", name: "Delete Media", description: "Remove files" },
-      { id: "media.public", name: "Make Public", description: "Change file visibility" }
-    ]
-  },
-  users: {
-    label: "User Management",
-    permissions: [
-      { id: "users.view", name: "View Users", description: "See user list" },
-      { id: "users.create", name: "Create Users", description: "Add new users" },
-      { id: "users.edit", name: "Edit Users", description: "Modify user details" },
-      { id: "users.delete", name: "Delete Users", description: "Remove users" },
-      { id: "users.roles", name: "Change Roles", description: "Modify user roles" },
-      { id: "users.permissions", name: "Manage Permissions", description: "Grant/revoke permissions" }
-    ]
-  },
-  volunteers: {
-    label: "Volunteer Management",
-    permissions: [
-      { id: "volunteers.view", name: "View Volunteers", description: "See volunteer list" },
-      { id: "volunteers.approve", name: "Approve Hours", description: "Approve volunteer hours" },
-      { id: "volunteers.forms", name: "View Forms", description: "See volunteer applications" }
-    ]
-  },
-  presentations: {
-    label: "Presentation Management",
-    permissions: [
-      { id: "presentations.view", name: "View Presentations", description: "See all presentations" },
-      { id: "presentations.create", name: "Create Presentations", description: "Schedule new presentations" },
-      { id: "presentations.edit", name: "Edit Presentations", description: "Modify presentation details" },
-      { id: "presentations.delete", name: "Delete Presentations", description: "Remove presentations" }
-    ]
-  },
-  analytics: {
-    label: "Analytics & Reports",
-    permissions: [
-      { id: "analytics.view", name: "View Analytics", description: "See dashboard analytics" },
-      { id: "analytics.export", name: "Export Data", description: "Download reports" }
-    ]
-  },
-  teachers: {
-    label: "Teacher Management",
-    permissions: [
-      { id: "teachers.view", name: "View Applications", description: "See teacher applications" },
-      { id: "teachers.edit", name: "Edit Applications", description: "Modify application status and notes" },
-      { id: "teachers.contact", name: "Contact Teachers", description: "Send emails and messages to teachers" },
-      { id: "teachers.schedule", name: "Schedule Presentations", description: "Create presentations for teachers" }
-    ]
-  },
-  finance: {
-    label: "Financial Management",
-    permissions: [
-      { id: "finance.view", name: "View Budgets", description: "See budget categories and spending" },
-      { id: "finance.edit", name: "Manage Budgets", description: "Create and modify budget categories" },
-      { id: "finance.approve", name: "Approve Expenses", description: "Approve expense requests" },
-      { id: "finance.export", name: "Export Reports", description: "Download financial reports" }
-    ]
-  },
-  safety: {
-    label: "Safety & Emergency",
-    permissions: [
-      { id: "safety.view", name: "View Incidents", description: "See safety incidents and contacts" },
-      { id: "safety.edit", name: "Manage Safety", description: "Create and update safety records" },
-      { id: "safety.emergency", name: "Emergency Access", description: "Access emergency contact information" }
-    ]
-  },
-  equipment: {
-    label: "Equipment Management",
-    permissions: [
-      { id: "equipment.view", name: "View Equipment", description: "See equipment inventory" },
-      { id: "equipment.edit", name: "Manage Equipment", description: "Add, edit, and track equipment" },
-      { id: "equipment.checkout", name: "Equipment Checkout", description: "Check out and return equipment" },
-      { id: "equipment.maintenance", name: "Maintenance Records", description: "View and update maintenance logs" }
-    ]
-  }
+  content: ['view', 'edit', 'create', 'delete', 'publish'],
+  forms: ['view', 'edit', 'create', 'delete', 'publish'],
+  users: ['view', 'edit', 'create', 'delete'],
+  blog: ['view', 'edit', 'create', 'delete', 'publish'],
+  analytics: ['view'],
+  permissions: ['view', 'edit'],
+  admin: ['access']
 };
 
-export default function PermissionsPage() {
-  const [users, setUsers] = useState<UserPermissions[]>([]);
+export default function PermissionsManagementPage() {
+  const [activeTab, setActiveTab] = useState<'roles' | 'custom'>('roles');
+  const [rolePermissions, setRolePermissions] = useState<RolePermissions>({});
+  const [customPermissions, setCustomPermissions] = useState<CustomPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCustomPermissionModal, setShowCustomPermissionModal] = useState(false);
 
   const supabase = createClientComponentClient();
 
-  const loadUsers = useCallback(async () => {
+  useEffect(() => {
+    loadPermissions();
+  }, []);
+
+  async function loadPermissions() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, name, email, role, permissions")
-        .order("name");
+
+      // Load role permissions
+      const rolePerms = await permissionEvaluator.getAllRolePermissions();
+      setRolePermissions(rolePerms);
+
+      // Load custom permissions
+      const { data: customPerms, error } = await supabase
+        .from('user_custom_permissions')
+        .select(`
+          *,
+          user:user_id(name, email),
+          granter:granted_by(name, email)
+        `)
+        .order('granted_at', { ascending: false });
 
       if (error) throw error;
+      setCustomPermissions(customPerms || []);
 
-      setUsers(
-        (data || []).map((u) => ({
-          userId: u.id,
-          userName: u.name || "Unknown",
-          userEmail: u.email || "",
-          role: u.role || "volunteer",
-          permissions: u.permissions || []
-        }))
-      );
-    } catch (error: any) {
-      showMessage("error", error.message);
+    } catch (error) {
+      console.error('Error loading permissions:', error);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }
 
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
-
-  async function updateUserPermissions(userId: string, permissions: string[]) {
+  async function updateRolePermission(role: string, permissionKey: string, granted: boolean) {
     try {
       setSaving(true);
-      const { error } = await supabase
-        .from("users")
-        .update({ permissions })
-        .eq("id", userId);
 
-      if (error) throw error;
+      // Get current permissions for the role
+      const currentPerms = rolePermissions[role] || [];
+      const updatedPerms = currentPerms.map(perm =>
+        perm.permissionKey === permissionKey
+          ? { ...perm, granted }
+          : perm
+      );
 
-      setUsers(users.map(u =>
-        u.userId === userId ? { ...u, permissions } : u
-      ));
+      // If permission doesn't exist, add it
+      if (!updatedPerms.find(perm => perm.permissionKey === permissionKey)) {
+        updatedPerms.push({
+          permissionKey,
+          granted,
+          resourceScope: null
+        });
+      }
 
-      showMessage("success", "Permissions updated successfully!");
-    } catch (error: any) {
-      showMessage("error", error.message);
+      await permissionEvaluator.updateRolePermissions('current-user-id', role, updatedPerms);
+
+      // Update local state
+      setRolePermissions(prev => ({
+        ...prev,
+        [role]: updatedPerms
+      }));
+
+    } catch (error) {
+      console.error('Error updating role permission:', error);
+      alert('Failed to update permission');
     } finally {
       setSaving(false);
     }
   }
 
-  function togglePermission(userId: string, permissionId: string) {
-    const user = users.find(u => u.userId === userId);
-    if (!user) return;
+  async function revokeCustomPermission(permissionId: string) {
+    if (!confirm('Are you sure you want to revoke this custom permission?')) return;
 
-    const hasPermission = user.permissions.includes(permissionId);
-    const newPermissions = hasPermission
-      ? user.permissions.filter(p => p !== permissionId)
-      : [...user.permissions, permissionId];
-
-    updateUserPermissions(userId, newPermissions);
+    try {
+      await permissionEvaluator.revokeCustomPermission('current-user-id', permissionId);
+      setCustomPermissions(prev => prev.filter(perm => perm.id !== permissionId));
+    } catch (error) {
+      console.error('Error revoking custom permission:', error);
+      alert('Failed to revoke permission');
+    }
   }
 
-  function grantAllPermissions(userId: string, category: string) {
-    const user = users.find(u => u.userId === userId);
-    if (!user) return;
+  const filteredCustomPermissions = customPermissions.filter(perm => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      perm.user?.name?.toLowerCase().includes(searchLower) ||
+      perm.user?.email?.toLowerCase().includes(searchLower) ||
+      perm.permission_type.toLowerCase().includes(searchLower)
+    );
+  });
 
-    const categoryPerms = PERMISSION_CATEGORIES[category as keyof typeof PERMISSION_CATEGORIES].permissions.map(p => p.id);
-    const otherPerms = user.permissions.filter(p => !categoryPerms.includes(p));
-    const newPermissions = [...otherPerms, ...categoryPerms];
-
-    updateUserPermissions(userId, newPermissions);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
-
-  function revokeAllPermissions(userId: string, category: string) {
-    const user = users.find(u => u.userId === userId);
-    if (!user) return;
-
-    const categoryPerms = PERMISSION_CATEGORIES[category as keyof typeof PERMISSION_CATEGORIES].permissions.map(p => p.id);
-    const newPermissions = user.permissions.filter(p => !categoryPerms.includes(p));
-
-    updateUserPermissions(userId, newPermissions);
-  }
-
-  function showMessage(type: "success" | "error", text: string) {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 5000);
-  }
-
-  const filteredUsers = users.filter(
-    u =>
-      u.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.userEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
-    <div className="min-h-screen bg-gsv-slate-100 py-12">
-      <div className="container max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gsv-charcoal mb-2">Permissions Management</h1>
-          <p className="text-gsv-slate-600">Control who can access what features</p>
-        </div>
-
-        {/* Message Toast */}
-        <AnimatePresence>
-          {message && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`mb-6 p-4 rounded-xl ${
-                message.type === "success"
-                  ? "bg-accent-success/10 text-accent-success border border-accent-success/20"
-                  : "bg-accent-error/10 text-accent-error border border-accent-error/20"
-              }`}
-            >
-              {message.text}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Search */}
-        <div className="bg-white rounded-2xl shadow-soft p-6 mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gsv-slate-400" />
-            <input
-              type="text"
-              placeholder="Search users by name, email, or role..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gsv-slate-300 rounded-xl focus:ring-2 focus:ring-gsv-green focus:border-transparent transition-all"
-            />
+    <div className="container py-10">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Permissions Management</h1>
+            <p className="text-gray-600 mt-2">Manage role-based and custom user permissions</p>
           </div>
-        </div>
-
-        {/* Users List */}
-        {loading ? (
-          <div className="bg-white rounded-2xl shadow-soft p-12 text-center">
-            <div className="animate-spin w-12 h-12 border-4 border-gsv-green border-t-transparent rounded-full mx-auto mb-4" />
-            <p className="text-gsv-slate-600">Loading users...</p>
-          </div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-soft p-12 text-center">
-            <Users className="w-16 h-16 text-gsv-slate-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gsv-slate-700 mb-2">No users found</p>
-            <p className="text-sm text-gsv-slate-500">Try adjusting your search</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {filteredUsers.map((user, index) => (
-              <motion.div
-                key={user.userId}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="bg-white rounded-2xl shadow-soft overflow-hidden"
-              >
-                {/* User Header */}
-                <div
-                  className="bg-gsv-slate-50 px-6 py-4 border-b border-gsv-slate-200 flex items-center justify-between cursor-pointer hover:bg-gsv-slate-100 transition-colors"
-                  onClick={() => setSelectedUser(selectedUser === user.userId ? null : user.userId)}
-                >
-                  <div>
-                    <h3 className="font-bold text-gsv-charcoal">{user.userName}</h3>
-                    <p className="text-sm text-gsv-slate-500">{user.userEmail}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      user.role === "founder"
-                        ? "bg-gsv-green/10 text-gsv-green"
-                        : user.role === "intern"
-                        ? "bg-accent-blue/10 text-accent-blue"
-                        : "bg-gsv-slate-200 text-gsv-slate-700"
-                    }`}>
-                      {user.role}
-                    </span>
-                    <span className="text-sm text-gsv-slate-500">
-                      {user.permissions.length} permissions
-                    </span>
-                    <Shield className={`w-5 h-5 transition-transform ${
-                      selectedUser === user.userId ? "rotate-180" : ""
-                    }`} />
-                  </div>
-                </div>
-
-                {/* Permissions Grid */}
-                <AnimatePresence>
-                  {selectedUser === user.userId && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="p-6 space-y-6">
-                        {Object.entries(PERMISSION_CATEGORIES).map(([key, category]) => (
-                          <div key={key} className="border border-gsv-slate-200 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <h4 className="font-bold text-gsv-charcoal">{category.label}</h4>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => grantAllPermissions(user.userId, key)}
-                                  className="text-xs px-3 py-1 bg-gsv-green text-white rounded-lg hover:bg-gsv-greenDark transition-colors"
-                                >
-                                  Grant All
-                                </button>
-                                <button
-                                  onClick={() => revokeAllPermissions(user.userId, key)}
-                                  className="text-xs px-3 py-1 bg-gsv-slate-200 text-gsv-slate-700 rounded-lg hover:bg-gsv-slate-300 transition-colors"
-                                >
-                                  Revoke All
-                                </button>
-                              </div>
-                            </div>
-                            <div className="grid sm:grid-cols-2 gap-3">
-                              {category.permissions.map((permission) => {
-                                const hasPermission = user.permissions.includes(permission.id);
-                                return (
-                                  <button
-                                    key={permission.id}
-                                    onClick={() => togglePermission(user.userId, permission.id)}
-                                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                                      hasPermission
-                                        ? "border-gsv-green bg-gsv-greenSoft"
-                                        : "border-gsv-slate-200 hover:border-gsv-green/50"
-                                    }`}
-                                  >
-                                    <div className="flex items-start justify-between mb-2">
-                                      <span className="font-semibold text-gsv-charcoal text-sm">
-                                        {permission.name}
-                                      </span>
-                                      <div className={`w-5 h-5 rounded flex items-center justify-center ${
-                                        hasPermission
-                                          ? "bg-gsv-green text-white"
-                                          : "bg-gsv-slate-200"
-                                      }`}>
-                                        {hasPermission ? (
-                                          <Check className="w-3 h-3" />
-                                        ) : (
-                                          <X className="w-3 h-3 text-gsv-slate-400" />
-                                        )}
-                                      </div>
-                                    </div>
-                                    <p className="text-xs text-gsv-slate-600">
-                                      {permission.description}
-                                    </p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {/* Help Section */}
-        <div className="mt-8 bg-gradient-to-br from-gsv-greenSoft to-gsv-warmSoft rounded-2xl p-8 border border-gsv-green/20">
-          <h3 className="text-xl font-bold text-gsv-charcoal mb-4">💡 Permission Management Tips</h3>
-          <div className="grid md:grid-cols-2 gap-6 text-sm text-gsv-slate-700">
-            <div>
-              <h4 className="font-semibold mb-2">Roles vs Permissions</h4>
-              <ul className="space-y-1 list-disc list-inside">
-                <li><strong>Founders:</strong> Full access to everything</li>
-                <li><strong>Interns:</strong> Can manage content and volunteers</li>
-                <li><strong>Volunteers:</strong> Limited to their own data</li>
-                <li><strong>Custom:</strong> Grant specific permissions as needed</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Best Practices</h4>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>Grant minimum necessary permissions</li>
-                <li>Review permissions regularly</li>
-                <li>Use categories to grant related permissions</li>
-                <li>Test permissions before granting widely</li>
-              </ul>
-            </div>
-          </div>
+          <button
+            onClick={() => setShowCustomPermissionModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Grant Custom Permission
+          </button>
         </div>
       </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 mb-8">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'roles', label: 'Role Permissions', icon: Shield },
+            { id: 'custom', label: 'Custom Permissions', icon: Key }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Role Permissions Tab */}
+      {activeTab === 'roles' && (
+        <div className="space-y-8">
+          {ROLES.map(role => (
+            <div key={role} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 capitalize flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {role.replace('_', ' ')} Permissions
+                </h3>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
+                    <div key={category} className="space-y-3">
+                      <h4 className="font-medium text-gray-900 capitalize">{category}</h4>
+                      <div className="space-y-2">
+                        {permissions.map(permission => {
+                          const permissionKey = `${category}.${permission}`;
+                          const isGranted = rolePermissions[role]?.find(
+                            p => p.permissionKey === permissionKey
+                          )?.granted || false;
+
+                          return (
+                            <label key={permission} className="flex items-center justify-between text-sm">
+                              <span className="text-gray-700 capitalize">{permission}</span>
+                              <button
+                                onClick={() => updateRolePermission(role, permissionKey, !isGranted)}
+                                disabled={saving}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                  isGranted ? 'bg-blue-600' : 'bg-gray-200'
+                                } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    isGranted ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Custom Permissions Tab */}
+      {activeTab === 'custom' && (
+        <div className="space-y-6">
+          {/* Search and Filters */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search users or permissions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Permissions List */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {filteredCustomPermissions.length === 0 ? (
+              <div className="p-12 text-center">
+                <Key className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No custom permissions</h3>
+                <p className="text-gray-600">
+                  {customPermissions.length === 0
+                    ? "No custom permissions have been granted yet."
+                    : "No permissions match your search criteria."}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Permission Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Permissions
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Granted By
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Expires
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredCustomPermissions.map((perm) => (
+                      <tr key={perm.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <Users className="w-5 h-5 text-gray-500" />
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {perm.user?.name || 'Unknown User'}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {perm.user?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                            {perm.permission_type.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(perm.permissions).map(([key, value]) => (
+                              value && (
+                                <span
+                                  key={key}
+                                  className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800"
+                                >
+                                  {key}
+                                </span>
+                              )
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div>
+                            <div className="font-medium">
+                              {perm.granter?.name || 'System'}
+                            </div>
+                            <div className="text-gray-500">
+                              {new Date(perm.granted_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {perm.expires_at ? (
+                            <div className="flex items-center text-sm text-gray-900">
+                              <Clock className="w-4 h-4 mr-1 text-gray-400" />
+                              {new Date(perm.expires_at) > new Date() ? (
+                                new Date(perm.expires_at).toLocaleDateString()
+                              ) : (
+                                <span className="text-red-600">Expired</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">Never</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => revokeCustomPermission(perm.id)}
+                            className="text-red-600 hover:text-red-900 text-sm font-medium"
+                          >
+                            <Trash2 className="w-4 h-4 inline mr-1" />
+                            Revoke
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Permission Modal */}
+      {showCustomPermissionModal && (
+        <CustomPermissionModal
+          onClose={() => setShowCustomPermissionModal(false)}
+          onSuccess={() => {
+            setShowCustomPermissionModal(false);
+            loadPermissions();
+          }}
+        />
+      )}
     </div>
   );
 }
 
+function CustomPermissionModal({
+  onClose,
+  onSuccess
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    userEmail: '',
+    permissionType: 'content_block',
+    resourceId: '',
+    permissions: {} as Record<string, boolean>,
+    expiresAt: '',
+    notes: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const permissionOptions = {
+    content_block: ['view', 'edit', 'delete', 'publish'],
+    form: ['view', 'edit', 'delete', 'publish'],
+    blog_post: ['view', 'edit', 'delete', 'publish'],
+    global: ['admin']
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      setSaving(true);
+
+      // Find user by email
+      const supabase = createClientComponentClient();
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', formData.userEmail)
+        .single();
+
+      if (userError || !user) {
+        alert('User not found');
+        return;
+      }
+
+      await permissionEvaluator.grantCustomPermission('current-user-id', user.id, {
+        permissionType: formData.permissionType,
+        resourceId: formData.resourceId || undefined,
+        permissions: formData.permissions,
+        expiresAt: formData.expiresAt ? new Date(formData.expiresAt) : undefined,
+        notes: formData.notes
+      });
+
+      onSuccess();
+    } catch (error) {
+      console.error('Error granting permission:', error);
+      alert('Failed to grant permission');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Grant Custom Permission</h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">User Email</label>
+            <input
+              type="email"
+              required
+              value={formData.userEmail}
+              onChange={(e) => setFormData(prev => ({ ...prev, userEmail: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Permission Type</label>
+            <select
+              value={formData.permissionType}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                permissionType: e.target.value,
+                permissions: {} // Reset permissions when type changes
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="content_block">Content Block</option>
+              <option value="form">Form</option>
+              <option value="blog_post">Blog Post</option>
+              <option value="global">Global</option>
+            </select>
+          </div>
+
+          {formData.permissionType !== 'global' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Resource ID <span className="text-gray-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.resourceId}
+                onChange={(e) => setFormData(prev => ({ ...prev, resourceId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Leave empty for category-wide access"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+            <div className="space-y-2">
+              {permissionOptions[formData.permissionType as keyof typeof permissionOptions]?.map(perm => (
+                <label key={perm} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.permissions[perm] || false}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      permissions: {
+                        ...prev.permissions,
+                        [perm]: e.target.checked
+                      }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 capitalize">{perm}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expiration Date <span className="text-gray-500">(optional)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={formData.expiresAt}
+              onChange={(e) => setFormData(prev => ({ ...prev, expiresAt: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Optional notes about this permission"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? 'Granting...' : 'Grant Permission'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

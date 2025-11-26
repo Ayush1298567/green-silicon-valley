@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { trackUserActivity } from "@/lib/auth/routing";
+import { actionItemsService } from "@/lib/actionItemsService";
 
 export async function POST(req: Request) {
   try {
@@ -66,6 +67,14 @@ export async function POST(req: Request) {
         { ok: false, error: insertError.message },
         { status: 500 }
       );
+    }
+
+    // Create action item for volunteer review
+    try {
+      await actionItemsService.onVolunteerApplicationSubmitted(volunteer.id, teamName);
+    } catch (actionError) {
+      console.error("Error creating action item for volunteer:", actionError);
+      // Don't fail the submission if action item creation fails
     }
 
     // Track form submission activity
