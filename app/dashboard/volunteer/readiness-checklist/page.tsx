@@ -20,21 +20,46 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Default checklist items for presentation readiness
+  // Comprehensive checklist items organized by timeline
   const defaultChecklist = [
+    // Pre-Planning Phase (1-2 weeks before)
     {
       id: 'content_review',
       title: 'Content Review Complete',
       description: 'Review all presentation slides and key talking points',
       completed: false,
       required: true,
+      phase: 'planning',
+      estimatedTime: '2 hours'
     },
+    {
+      id: 'team_assignment',
+      title: 'Team Roles Assigned',
+      description: 'Confirm your specific role and responsibilities in the presentation',
+      completed: false,
+      required: true,
+      phase: 'planning',
+      estimatedTime: '15 minutes'
+    },
+    {
+      id: 'contact_info_shared',
+      title: 'Contact Info Shared',
+      description: 'Share your phone number with team coordinator for emergency contact',
+      completed: false,
+      required: true,
+      phase: 'planning',
+      estimatedTime: '5 minutes'
+    },
+
+    // Preparation Phase (1 week before)
     {
       id: 'practice_session',
       title: 'Practice Session',
       description: 'Complete at least one full practice run of the presentation',
       completed: false,
       required: true,
+      phase: 'preparation',
+      estimatedTime: '45 minutes'
     },
     {
       id: 'team_coordination',
@@ -42,6 +67,8 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
       description: 'Confirm roles and timing with all team members',
       completed: false,
       required: true,
+      phase: 'preparation',
+      estimatedTime: '30 minutes'
     },
     {
       id: 'materials_prepared',
@@ -49,20 +76,8 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
       description: 'Gather all props, handouts, and presentation materials',
       completed: false,
       required: true,
-    },
-    {
-      id: 'equipment_check',
-      title: 'Equipment Check',
-      description: 'Test projector, clicker, and any tech equipment',
-      completed: false,
-      required: true,
-    },
-    {
-      id: 'backup_plan',
-      title: 'Backup Plan Ready',
-      description: 'Prepare contingency plans for technical issues or absences',
-      completed: false,
-      required: false,
+      phase: 'preparation',
+      estimatedTime: '1 hour'
     },
     {
       id: 'questions_prep',
@@ -70,6 +85,19 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
       description: 'Prepare answers for common student questions',
       completed: false,
       required: false,
+      phase: 'preparation',
+      estimatedTime: '30 minutes'
+    },
+
+    // Day-Before Phase (24 hours before)
+    {
+      id: 'final_runthrough',
+      title: 'Final Run-Through',
+      description: 'Complete final practice session with full team',
+      completed: false,
+      required: true,
+      phase: 'final_prep',
+      estimatedTime: '30 minutes'
     },
     {
       id: 'timing_practice',
@@ -77,7 +105,76 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
       description: 'Ensure presentation fits within the allotted time',
       completed: false,
       required: true,
+      phase: 'final_prep',
+      estimatedTime: '15 minutes'
     },
+    {
+      id: 'logistics_confirmed',
+      title: 'Logistics Confirmed',
+      description: 'Confirm school address, parking, and arrival time',
+      completed: false,
+      required: true,
+      phase: 'final_prep',
+      estimatedTime: '10 minutes'
+    },
+    {
+      id: 'emergency_contacts',
+      title: 'Emergency Contacts Ready',
+      description: 'Have school office number and emergency contacts saved',
+      completed: false,
+      required: true,
+      phase: 'final_prep',
+      estimatedTime: '5 minutes'
+    },
+
+    // Presentation Day
+    {
+      id: 'equipment_check',
+      title: 'Equipment Check',
+      description: 'Test projector, clicker, and any tech equipment',
+      completed: false,
+      required: true,
+      phase: 'presentation_day',
+      estimatedTime: '15 minutes'
+    },
+    {
+      id: 'backup_plan',
+      title: 'Backup Plan Ready',
+      description: 'Prepare contingency plans for technical issues or absences',
+      completed: false,
+      required: false,
+      phase: 'presentation_day',
+      estimatedTime: '10 minutes'
+    },
+    {
+      id: 'arrival_confirmation',
+      title: 'Arrival Confirmed',
+      description: 'Check in with school upon arrival and confirm setup',
+      completed: false,
+      required: true,
+      phase: 'presentation_day',
+      estimatedTime: '5 minutes'
+    },
+
+    // Post-Presentation
+    {
+      id: 'hours_logged',
+      title: 'Hours Logged',
+      description: 'Submit volunteer hours after presentation completion',
+      completed: false,
+      required: true,
+      phase: 'post_presentation',
+      estimatedTime: '10 minutes'
+    },
+    {
+      id: 'feedback_submitted',
+      title: 'Feedback Submitted',
+      description: 'Complete post-presentation reflection and feedback',
+      completed: false,
+      required: false,
+      phase: 'post_presentation',
+      estimatedTime: '5 minutes'
+    }
   ];
 
   useEffect(() => {
@@ -139,6 +236,31 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
   const requiredCompleted = checklistItems.filter(item => item.required && item.completed).length;
   const requiredTotal = checklistItems.filter(item => item.required).length;
   const isReady = requiredCompleted === requiredTotal;
+
+  // Group items by phase
+  const phases = {
+    planning: checklistItems.filter(item => item.phase === 'planning'),
+    preparation: checklistItems.filter(item => item.phase === 'preparation'),
+    final_prep: checklistItems.filter(item => item.phase === 'final_prep'),
+    presentation_day: checklistItems.filter(item => item.phase === 'presentation_day'),
+    post_presentation: checklistItems.filter(item => item.phase === 'post_presentation')
+  };
+
+  const getPhaseTitle = (phase: string) => {
+    switch (phase) {
+      case 'planning': return 'Planning Phase (1-2 weeks before)';
+      case 'preparation': return 'Preparation Phase (1 week before)';
+      case 'final_prep': return 'Final Prep (24 hours before)';
+      case 'presentation_day': return 'Presentation Day';
+      case 'post_presentation': return 'Post-Presentation';
+      default: return phase;
+    }
+  };
+
+  const getPhaseProgress = (phaseItems: any[]) => {
+    const completed = phaseItems.filter(item => item.completed).length;
+    return Math.round((completed / phaseItems.length) * 100);
+  };
 
   if (loading) {
     return (
@@ -227,65 +349,142 @@ export default function ReadinessChecklist({ teamId }: ReadinessChecklistProps) 
         </div>
       </div>
 
-      {/* Checklist Items */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">Checklist Items</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Check off items as you complete them. Required items are marked with an asterisk (*).
-          </p>
-        </div>
+      {/* Phase-Based Checklist */}
+      <div className="space-y-6">
+        {Object.entries(phases).map(([phaseKey, phaseItems]) => {
+          const phaseProgress = getPhaseProgress(phaseItems);
+          const phaseCompleted = phaseItems.filter(item => item.completed).length;
+          const phaseTotal = phaseItems.length;
 
-        <div className="divide-y divide-gray-200">
-          {checklistItems.map((item) => (
-            <div key={item.id} className="p-6">
-              <div className="flex items-start gap-4">
-                <button
-                  onClick={() => toggleItem(item.id)}
-                  className={`mt-1 flex-shrink-0 ${
-                    item.completed ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'
-                  }`}
-                >
-                  {item.completed ? (
-                    <CheckCircle className="w-6 h-6" />
-                  ) : (
-                    <Circle className="w-6 h-6" />
-                  )}
-                </button>
-
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className={`font-medium ${
-                      item.completed ? 'text-gray-900' : 'text-gray-900'
-                    }`}>
-                      {item.title}
-                      {item.required && <span className="text-red-500 ml-1">*</span>}
-                    </h3>
-                    {item.required && (
-                      <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
-                        Required
-                      </span>
-                    )}
-                  </div>
-                  <p className={`text-sm ${
-                    item.completed ? 'text-gray-600' : 'text-gray-600'
-                  }`}>
-                    {item.description}
-                  </p>
+          return (
+            <div key={phaseKey} className="bg-white rounded-lg shadow-sm border">
+              <div className="p-6 border-b bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {getPhaseTitle(phaseKey)}
+                  </h2>
+                  <span className="text-sm text-gray-600">
+                    {phaseCompleted}/{phaseTotal} completed
+                  </span>
                 </div>
+
+                {/* Phase Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      phaseProgress === 100 ? 'bg-green-500' :
+                      phaseProgress >= 75 ? 'bg-blue-500' :
+                      phaseProgress >= 50 ? 'bg-yellow-500' : 'bg-gray-400'
+                    }`}
+                    style={{ width: `${phaseProgress}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-600 mt-1">{phaseProgress}% complete</div>
+              </div>
+
+              <div className="divide-y divide-gray-200">
+                {phaseItems.map((item) => (
+                  <div key={item.id} className="p-6">
+                    <div className="flex items-start gap-4">
+                      <button
+                        onClick={() => toggleItem(item.id)}
+                        className={`mt-1 flex-shrink-0 ${
+                          item.completed ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        {item.completed ? (
+                          <CheckCircle className="w-6 h-6" />
+                        ) : (
+                          <Circle className="w-6 h-6" />
+                        )}
+                      </button>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className={`font-medium ${
+                            item.completed ? 'text-gray-900' : 'text-gray-900'
+                          }`}>
+                            {item.title}
+                            {item.required && <span className="text-red-500 ml-1">*</span>}
+                          </h3>
+                          {item.required && (
+                            <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+                              Required
+                            </span>
+                          )}
+                          {item.estimatedTime && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                              ~{item.estimatedTime}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-sm ${
+                          item.completed ? 'text-gray-600' : 'text-gray-600'
+                        }`}>
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          );
+        })}
+      </div>
+
+      {/* Team Progress Summary */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Team Progress Overview</h2>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(phases).map(([phaseKey, phaseItems]) => {
+            const phaseProgress = getPhaseProgress(phaseItems);
+            const nextRequired = phaseItems.find(item => !item.completed && item.required);
+
+            return (
+              <div key={phaseKey} className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 mb-2">
+                  {getPhaseTitle(phaseKey).split('(')[0]}
+                </h3>
+
+                <div className="mb-3">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progress</span>
+                    <span>{phaseProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        phaseProgress === 100 ? 'bg-green-500' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${phaseProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {nextRequired && (
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">Next:</span>
+                    <span className="text-gray-600 ml-1">{nextRequired.title}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 bg-gray-50 border-t">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Legend:</span> * = Required for presentation readiness
-            </div>
-            <div className="text-sm text-gray-600">
-              Last updated: {new Date().toLocaleDateString()}
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-blue-900 mb-1">Team Coordination Tips</h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Coordinate with your team lead for practice sessions</li>
+                <li>• Share contact info early for emergency situations</li>
+                <li>• Confirm roles and timing during final preparation</li>
+                <li>• Check in with each other 24 hours before presentation</li>
+              </ul>
             </div>
           </div>
         </div>

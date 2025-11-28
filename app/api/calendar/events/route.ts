@@ -40,7 +40,51 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, events: data || [] });
+  // Get scheduled teacher presentations
+  const { data: presentations, error: presentationsError } = await supabase
+    .from("schools")
+    .select(`
+      id,
+      teacher_name,
+      school_name,
+      scheduled_date,
+      topic,
+      status,
+      student_count,
+      preferred_topics
+    `)
+    .not("scheduled_date", "is", null)
+    .eq("status", "scheduled");
+
+  if (presentationsError) {
+    console.error("Error fetching presentations:", presentationsError);
+  }
+
+  // Convert presentations to calendar events
+  const presentationEvents = (presentations || []).map(pres => ({
+    id: `presentation-${pres.id}`,
+    event_type: "presentation",
+    title: `${pres.teacher_name} - ${pres.school_name}`,
+    description: `Presentation for ${pres.student_count || 'class'} students. Topics: ${pres.preferred_topics?.join(', ') || 'TBD'}`,
+    start_date: pres.scheduled_date,
+    end_date: pres.scheduled_date, // Assume same day for now
+    all_day: true,
+    location: pres.school_name,
+    status: pres.status,
+    color: "#3B82F6",
+    related_id: pres.id,
+    metadata: {
+      type: "teacher_presentation",
+      teacher_name: pres.teacher_name,
+      school_name: pres.school_name,
+      student_count: pres.student_count,
+      topics: pres.preferred_topics
+    }
+  }));
+
+  const allEvents = [...(data || []), ...presentationEvents];
+
+  return NextResponse.json({ ok: true, events: allEvents });
 }
 
 export async function POST(req: Request) {

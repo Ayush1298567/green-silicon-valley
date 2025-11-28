@@ -74,6 +74,7 @@ export default function DynamicNav({ user }: DynamicNavProps) {
       admin: [
         { name: "Dashboard", href: "/dashboard/admin", icon: Settings },
         { name: "Users", href: "/admin/users", icon: Users },
+        { name: "Teacher Requests", href: "/admin/teacher-requests", icon: MessageSquare },
         { name: "Content", href: "/admin/content", icon: FileText },
         { name: "Recruitment", href: "/admin/recruitment", icon: Users },
         { name: "Localization", href: "/admin/localization", icon: Globe },
@@ -82,6 +83,9 @@ export default function DynamicNav({ user }: DynamicNavProps) {
       founder: [
         { name: "Dashboard", href: "/dashboard/founder", icon: Settings },
         { name: "Calendar", href: "/dashboard/founder/calendar", icon: Calendar },
+        { name: "Messages", href: "/dashboard/founder/messages", icon: MessageSquare },
+        { name: "Teacher Requests", href: "/admin/teacher-requests", icon: MessageSquare },
+        { name: "Media Review", href: "/admin/media-review", icon: Camera },
         { name: "Applications", href: "/dashboard/founder/applications", icon: FileText },
         { name: "Action Items", href: "/dashboard/action-items", icon: Target },
         { name: "CRM", href: "/admin/crm/teachers", icon: Users },
@@ -98,6 +102,9 @@ export default function DynamicNav({ user }: DynamicNavProps) {
         { name: "Dashboard", href: "/dashboard/volunteer", icon: Settings },
         { name: "Presentations", href: "/dashboard/volunteer/presentations", icon: FileText },
         { name: "Hours", href: "/dashboard/volunteer/hours", icon: Calendar },
+        { name: "Readiness", href: "/dashboard/volunteer/readiness-checklist", icon: CheckSquare },
+        { name: "Media Upload", href: "/dashboard/volunteer/media-submission", icon: Camera },
+        { name: "Messages", href: "/dashboard/volunteer/messages", icon: MessageSquare },
         { name: "Team", href: "/dashboard/volunteer/team", icon: Users },
         { name: "Resources", href: "/dashboard/volunteer/resources", icon: FolderOpen },
       ],

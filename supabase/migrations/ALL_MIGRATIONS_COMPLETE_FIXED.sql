@@ -4050,6 +4050,120 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ============================================================================
+-- MESSAGING SYSTEM TABLES
+-- ============================================================================
+
+-- Conversations table
+CREATE TABLE IF NOT EXISTS conversations (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  type text NOT NULL CHECK (type IN ('individual', 'team')),
+  created_by uuid REFERENCES users(id),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Conversation participants
+CREATE TABLE IF NOT EXISTS conversation_participants (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  conversation_id uuid REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  joined_at timestamp with time zone DEFAULT now(),
+  UNIQUE(conversation_id, user_id)
+);
+
+-- Messages table
+CREATE TABLE IF NOT EXISTS messages (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  conversation_id uuid REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  content text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for conversations
+DROP POLICY IF EXISTS "conversations_access" ON conversations;
+CREATE POLICY "conversations_access" ON conversations
+  FOR ALL USING (
+    created_by = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = conversations.id
+      AND cp.user_id = auth.uid()
+    )
+  );
+
+-- RLS Policies for conversation_participants
+DROP POLICY IF EXISTS "conversation_participants_access" ON conversation_participants;
+CREATE POLICY "conversation_participants_access" ON conversation_participants
+  FOR ALL USING (user_id = auth.uid());
+
+-- RLS Policies for messages
+DROP POLICY IF EXISTS "messages_access" ON messages;
+CREATE POLICY "messages_access" ON messages
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = messages.conversation_id
+      AND cp.user_id = auth.uid()
+    )
+  );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_conversations_created_by ON conversations(created_by);
+CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type);
+CREATE INDEX IF NOT EXISTS idx_conversation_participants_conversation ON conversation_participants(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_participants_user ON conversation_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
+
+-- ============================================================================
+-- PRESENTATION MEDIA SYSTEM
+-- ============================================================================
+
+-- Presentation media uploads
+CREATE TABLE IF NOT EXISTS presentation_media (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  presentation_id uuid REFERENCES presentations(id) ON DELETE CASCADE,
+  uploaded_by uuid REFERENCES users(id),
+  file_url text NOT NULL,
+  file_type text NOT NULL CHECK (file_type IN ('image', 'video')),
+  caption text,
+  approved_for_social boolean DEFAULT false,
+  status text DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewed_by uuid REFERENCES users(id),
+  reviewed_at timestamp with time zone,
+  uploaded_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE presentation_media ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for presentation_media
+DROP POLICY IF EXISTS "presentation_media_access" ON presentation_media;
+CREATE POLICY "presentation_media_access" ON presentation_media
+  FOR ALL USING (
+    uploaded_by = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.role IN ('founder', 'intern')
+    )
+  );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_presentation_media_presentation ON presentation_media(presentation_id);
+CREATE INDEX IF NOT EXISTS idx_presentation_media_uploaded_by ON presentation_media(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_presentation_media_status ON presentation_media(status);
+CREATE INDEX IF NOT EXISTS idx_presentation_media_uploaded_at ON presentation_media(uploaded_at DESC);
+
 -- Function to auto-create action items for common events
 CREATE OR REPLACE FUNCTION auto_create_action_items() RETURNS trigger AS $$
 BEGIN
