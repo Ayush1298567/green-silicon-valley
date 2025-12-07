@@ -31,6 +31,36 @@
 
 ---
 
+## 🚀 Quick Start for Interns
+
+**New to the team?** Follow these 4 simple steps to get started:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Ayush1298567/green-silicon-valley.git
+   cd green-silicon-valley
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment**
+   ```bash
+   cp .env.local.example .env.local
+   # Edit .env.local and replace .example with actual Supabase keys
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+**For detailed setup instructions, see [INTERN_SETUP.md](INTERN_SETUP.md)**
+
+---
+
 ## 🚀 **Complete Setup Guide**
 
 ### **Option 1: Automated Setup (Recommended)**

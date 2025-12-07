@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, X, Check, ArrowRight } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
@@ -23,7 +23,7 @@ export default function NewsletterBar({
   const supabase = createClientComponentClient();
 
   // Auto-show after delay
-  useState(() => {
+  useEffect(() => {
     if (autoShow) {
       const timer = setTimeout(() => {
         // Check if user has already dismissed or subscribed
